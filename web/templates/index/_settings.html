@@ -1,0 +1,93 @@
+<div v-if="tab==='settings'" class="container-fluid mt-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+      <div class="card mb-3"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">模型配置</h6>
+          <button class="btn btn-sm btn-primary" @click="newModel">新建模型</button>
+        </div>
+        <ul class="list-group">
+          <li v-for="m in models" :key="m.id" class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <span>[[ m.id===activeModel ? '⭐ ' : '' ]][[ m.id ]]</span>
+              <div class="btn-group btn-group-sm">
+                <button v-if="m.id!==activeModel" class="btn btn-outline-primary" @click="activateModel(m.id)">启用</button>
+                <button class="btn btn-outline-secondary" @click="editModel(m)">编辑</button>
+                <button class="btn btn-outline-danger" @click="deleteModel(m.id)">删除</button>
+              </div>
+            </div>
+            <small class="text-muted">[[ m.base_url ]] · 上限 [[ m.max_context ]] · 压缩 [[ m.compress_ratio ]]</small>
+          </li>
+        </ul>
+        <div v-if="showModelForm" class="border rounded p-3 mt-3 bg-light">
+          <h6>[[ modelEdit ? '编辑模型' : '新建模型' ]]</h6>
+          <div class="row g-2">
+            <div class="col-12"><label class="form-label small mb-0">ID（即 API 模型名）</label><input v-model="modelForm.id" class="form-control form-control-sm" :disabled="!!modelEdit"></div>
+            <div class="col-6"><label class="form-label small mb-0">Base URL</label><input v-model="modelForm.base_url" class="form-control form-control-sm"></div>
+            <div class="col-6"><label class="form-label small mb-0">API Key</label><input v-model="modelForm.api_key" class="form-control form-control-sm"></div>
+            <div class="col-3"><label class="form-label small mb-0">上下文上限</label><input v-model.number="modelForm.max_context" class="form-control form-control-sm"></div>
+            <div class="col-3"><label class="form-label small mb-0">压缩比例</label><input v-model.number="modelForm.compress_ratio" class="form-control form-control-sm"></div>
+            <div class="col-4"><label class="form-label small mb-0">输入价</label><input v-model.number="modelForm.input_price" class="form-control form-control-sm"></div>
+            <div class="col-4"><label class="form-label small mb-0">输出价</label><input v-model.number="modelForm.output_price" class="form-control form-control-sm"></div>
+            <div class="col-4"><label class="form-label small mb-0">cache价</label><input v-model.number="modelForm.cache_price" class="form-control form-control-sm"></div>
+          </div>
+          <div class="mt-2">
+            <button class="btn btn-sm btn-primary" @click="saveModel">保存</button>
+            <button class="btn btn-sm btn-outline-secondary ms-1" @click="showModelForm=false">取消</button>
+          </div>
+        </div>
+      </div></div>
+
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">System Prompt & 基本</h6></div><div class="card-body">
+        <label class="form-label small mb-0">System Prompt</label>
+        <textarea v-model="config.system_prompt" class="form-control form-control-sm" v-autosize></textarea>
+        <div class="row g-2 mt-2">
+          <div class="col-4"><label class="form-label small mb-0">重试次数</label><input v-model.number="config.retry" class="form-control form-control-sm"></div>
+        </div>
+      </div></div>
+<div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">审批（Approver）</h6></div><div class="card-body">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small mb-0">审批模型</label>
+            <select v-model="config.approver.model" class="form-select form-select-sm"><option v-for="m in models" :value="m.id">[[ m.id ]]</option></select>
+          </div>
+        </div>
+        <label class="form-label small mb-0 mt-2">审批 Prompt</label>
+        <textarea v-model="config.approver.prompt" class="form-control form-control-sm" v-autosize></textarea>
+      </div></div>
+
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">飞书</h6></div><div class="card-body">
+        <div class="form-check"><input type="checkbox" v-model="config.feishu.enabled" class="form-check-input" id="feishuEnabled"><label class="form-check-label small" for="feishuEnabled">启用飞书</label></div>
+        <div class="row g-2 mt-2">
+          <div class="col-4"><label class="form-label small mb-0">App ID</label><input v-model="config.feishu.app_id" class="form-control form-control-sm"></div>
+          <div class="col-4"><label class="form-label small mb-0">App Secret</label><input v-model="config.feishu.app_secret" class="form-control form-control-sm"></div>
+          <div class="col-4"><label class="form-label small mb-0">Admin</label><input v-model="config.feishu.admin" class="form-control form-control-sm"></div>
+        </div>
+        <div v-if="config.feishu.app_secret==='******'" class="text-warning small mt-1">App Secret 已脱敏，留空则保留原值</div>
+      </div></div>
+
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">插件配置</h6></div><div class="card-body">
+        <div v-for="p in pluginList" :key="p.name" class="border rounded p-2 mb-2">
+          <div class="small fw-bold">[[ p.name ]] <span class="text-muted fw-normal">- [[ p.description ]]</span></div>
+          <div v-for="(spec, field) in p.config" :key="field" class="mt-1">
+            <template v-if="spec.type === 'permission-level'">
+              <div class="row g-2">
+                <div v-for="k in spec.keys" :key="k" class="col-4">
+                  <label class="form-label small mb-0">[[ field ]].[[ k ]]</label>
+                  <select v-model="p.value[field][k]" class="form-select form-select-sm"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select>
+                </div>
+              </div>
+            </template>
+            <template v-else-if="spec.type === 'textlist'">
+              <div v-for="k in spec.keys" :key="k" class="mb-1">
+                <label class="form-label small mb-0">[[ field ]].[[ k ]]（每行一条）</label>
+                <textarea class="form-control form-control-sm" v-autosize :value="(p.value[field][k] || []).join('\n')" @input="setTextlist(p.value[field], k, $event)"></textarea>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div></div>
+
+      <button class="btn btn-success w-100 mb-3" v-if="config" @click="saveConfig">保存配置</button>
+    </div>
+  </div>
+</div>

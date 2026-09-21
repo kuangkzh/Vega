@@ -1,0 +1,52 @@
+<div v-if="tab==='chat'" class="container-fluid mt-3">
+  <div class="row">
+    <div class="col-md-3">
+      <button class="btn btn-sm btn-primary w-100 mb-2" @click="newSession">新建会话</button>
+      <ul class="list-group" style="max-height:70vh; overflow-y:auto;">
+        <li v-for="s in sessions" :key="s.id" class="list-group-item session-item" :class="{active: s.id===currentSid}">
+          <a href="#" class="d-block text-decoration-none session-link" @click.prevent="selectSession(s.id)">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="session-name fw-semibold">[[ s.name ]]</span>
+              <span class="badge" :class="s.status==='running' ? 'text-bg-success' : 'text-bg-secondary'">[[ s.status ]]</span>
+            </div>
+            <div class="session-meta small">[[ s.id.slice(0,6) ]] · [[ s.message_count ]] 条</div>
+          </a>
+          <div class="btn-group btn-group-sm mt-2">
+            <button class="btn btn-outline-secondary" @click="forkSession(s.id)">fork</button>
+            <button class="btn btn-outline-danger" @click="deleteSession(s.id)">删除</button>
+          </div>
+        </li>
+      </ul>
+      <div class="mt-3" v-if="usage">
+        <small class="text-muted">token：in [[ usage.input ]] / out [[ usage.output ]] / cache [[ usage.cache ]]</small>
+        <div class="progress" style="height:6px"><div class="progress-bar" :style="{width: usagePct+'%'}"></div></div>
+      </div>
+    </div>
+    <div class="col-md-9">
+      <div class="card mb-2" style="height:60vh; overflow-y:auto;">
+        <div class="card-body">
+          <div v-for="(m, i) in messages" :key="i" class="mb-2">
+            <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>
+            <details v-else-if="m.role==='tool'" class="msg-assistant">
+              <summary>工具结果：[[ m.name ]]</summary>
+              <pre>[[ m.content ]]</pre>
+            </details>
+            <details v-else-if="m.role==='assistant' && m.tool_calls" class="msg-assistant">
+              <summary>思考 / 工具调用</summary>
+              <div>[[ m.content ]]</div>
+              <small class="text-muted" v-for="tc in m.tool_calls">→ [[ tc.function.name ]]</small>
+            </details>
+            <div v-else class="msg-assistant"><b>助手：</b><span>[[ m.content ]]</span></div>
+          </div>
+          <div v-if="streamText" class="msg-assistant"><b>助手：</b><span>[[ streamText ]]</span><span class="cursor">▌</span></div>
+          <div v-for="(t, i) in streamTools" :key="'t'+i" class="msg-assistant"><small class="text-muted">工具 [[ t.plugin ]] 已执行</small></div>
+        </div>
+      </div>
+      <div class="input-group">
+        <input v-model="inputText" class="form-control" placeholder="输入消息…" @keyup.enter="sendMessage">
+        <button class="btn btn-primary" @click="sendMessage">发送</button>
+        <button class="btn btn-outline-secondary" @click="resumeSession">Resume</button>
+      </div>
+    </div>
+  </div>
+</div>

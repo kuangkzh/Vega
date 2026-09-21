@@ -1,0 +1,25 @@
+<div v-if="tab==='code'" class="container-fluid mt-3">
+  <div class="row">
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
+        <ul class="list-group list-group-flush" style="max-height:70vh; overflow-y:auto;">
+          <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1">
+            <a href="#" class="text-decoration-none" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
+              [[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]
+            </a>
+          </li>
+        </ul>
+      </div></div>
+    </div>
+    <div class="col-md-9">
+      <div class="card"><div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">[[ currentFilePath || '选择文件' ]]</span>
+          <button class="btn btn-sm btn-primary" @click="saveFile" v-if="currentFilePath">保存</button>
+        </div>
+        <textarea v-model="fileContent" class="form-control" style="height:70vh; font-family:monospace;"></textarea>
+      </div></div>
+    </div>
+  </div>
+</div>

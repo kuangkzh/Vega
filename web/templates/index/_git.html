@@ -1,0 +1,21 @@
+<div v-if="tab==='git'" class="container-fluid mt-3">
+  <div v-if="gitErr" class="alert alert-warning">⚠ Git 不可用：[[ gitErr ]]（请确认 -d 指向的目录已 git init）</div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card mb-2"><div class="card-body">
+        <h6>当前分支：[[ gitCurrent ]]</h6>
+        <pre>[[ gitBranches ]]</pre>
+      </div></div>
+      <div class="card"><div class="card-body">
+        <h6>工作区状态</h6>
+        <pre>[[ gitStatus ]]</pre>
+      </div></div>
+    </div>
+    <div class="col-md-8">
+      <div class="card"><div class="card-body">
+        <h6>提交历史</h6>
+        <pre>[[ gitLog ]]</pre>
+      </div></div>
+    </div>
+  </div>
+</div>
