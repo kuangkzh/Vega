@@ -29,11 +29,9 @@ class TokenUsage:
 
 @dataclass
 class ModelConfig:
-    id: str = "default"
-    name: str = "default"
+    id: str = ""
     base_url: str = ""
     api_key: str = ""
-    model: str = ""
     max_context: int = 128000
     compress_ratio: float = 0.8
     input_price: float = 0.0
@@ -47,13 +45,10 @@ class ModelConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ModelConfig":
         d = d or {}
-        cid = str(d.get("id") or d.get("name") or "default")
         return cls(
-            id=cid,
-            name=str(d.get("name") or cid),
+            id=str(d.get("id") or ""),
             base_url=str(d.get("base_url") or ""),
             api_key=str(d.get("api_key") or ""),
-            model=str(d.get("model") or ""),
             max_context=int(d.get("max_context") or 128000),
             compress_ratio=float(d.get("compress_ratio") or 0.8),
             input_price=float(d.get("input_price") or 0.0),

@@ -1,10 +1,9 @@
 {
   "system_prompt": "You are CodeAgent, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
   "model": {
-    "name": "default",
+    "id": "gpt-4o",
     "base_url": "https://api.openai.com/v1",
     "api_key": "",
-    "model": "gpt-4o",
     "max_context": 128000,
     "compress_ratio": 0.8,
     "input_price": 0.0,
@@ -13,7 +12,7 @@
   },
   "retry": 3,
   "approver": {
-    "model": "default",
+    "model": "gpt-4o",
     "prompt": "你是一名权限审批助手。请根据以下工具调用请求判断是否批准。只输出 JSON：{\"decision\":\"approve|reject|escalate\",\"reason\":\"...\"}\n"
   },
   "feishu": {

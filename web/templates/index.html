@@ -190,7 +190,7 @@
             <ul class="list-group">
               <li v-for="m in models" :key="m.id" class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
-                  <span>[[ m.name ]] · [[ m.model ]] [[ m.id===activeModel ? '⭐' : '' ]]</span>
+                  <span>[[ m.id ]] [[ m.id===activeModel ? '⭐' : '' ]]</span>
                   <div class="btn-group btn-group-sm">
                     <button v-if="m.id!==activeModel" class="btn btn-outline-primary" @click="activateModel(m.id)">启用</button>
                     <button class="btn btn-outline-secondary" @click="editModel(m)">编辑</button>
@@ -203,11 +203,9 @@
             <div v-if="showModelForm" class="border rounded p-3 mt-3 bg-light">
               <h6>[[ modelEdit ? '编辑模型' : '新建模型' ]]</h6>
               <div class="row g-2">
-                <div class="col-6"><label class="form-label small mb-0">ID</label><input v-model="modelForm.id" class="form-control form-control-sm" :disabled="!!modelEdit"></div>
-                <div class="col-6"><label class="form-label small mb-0">名称</label><input v-model="modelForm.name" class="form-control form-control-sm"></div>
+                <div class="col-12"><label class="form-label small mb-0">ID（即 API 模型名）</label><input v-model="modelForm.id" class="form-control form-control-sm" :disabled="!!modelEdit"></div>
                 <div class="col-6"><label class="form-label small mb-0">Base URL</label><input v-model="modelForm.base_url" class="form-control form-control-sm"></div>
                 <div class="col-6"><label class="form-label small mb-0">API Key</label><input v-model="modelForm.api_key" class="form-control form-control-sm"></div>
-                <div class="col-6"><label class="form-label small mb-0">模型名</label><input v-model="modelForm.model" class="form-control form-control-sm"></div>
                 <div class="col-3"><label class="form-label small mb-0">上下文上限</label><input v-model.number="modelForm.max_context" class="form-control form-control-sm"></div>
                 <div class="col-3"><label class="form-label small mb-0">压缩比例</label><input v-model.number="modelForm.compress_ratio" class="form-control form-control-sm"></div>
                 <div class="col-4"><label class="form-label small mb-0">输入价</label><input v-model.number="modelForm.input_price" class="form-control form-control-sm"></div>
@@ -229,7 +227,7 @@
             <div class="row g-2 mt-1">
               <div class="col-4"><label class="form-label small mb-0">重试次数</label><input v-model.number="config.retry" class="form-control form-control-sm"></div>
               <div class="col-8"><label class="form-label small mb-0">审批模型</label>
-                <select v-model="config.approver.model" class="form-select form-select-sm"><option v-for="m in models" :value="m.id">[[ m.name ]]</option></select>
+                <select v-model="config.approver.model" class="form-select form-select-sm"><option v-for="m in models" :value="m.id">[[ m.id ]]</option></select>
               </div>
             </div>
             <label class="form-label small mb-0 mt-1">审批 Prompt</label>
@@ -298,7 +296,7 @@ const app = Vue.createApp({
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,
       config: null, models: [], activeModel: null,
       showModelForm: false, modelEdit: null,
-      modelForm: { id:'', name:'', base_url:'', api_key:'', model:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 },
+      modelForm: { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 },
       pluginList: [], pluginPerms: {},
       shell: { denied:'', human_review:'', agent_review:'', trusted:'' },
     };
@@ -474,12 +472,12 @@ const app = Vue.createApp({
     },
     newModel() {
       this.modelEdit = null;
-      this.modelForm = { id:'', name:'', base_url:'', api_key:'', model:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 };
+      this.modelForm = { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 };
       this.showModelForm = true;
     },
     editModel(m) {
       this.modelEdit = m;
-      this.modelForm = { id:m.id, name:m.name, base_url:m.base_url, api_key:m.api_key, model:m.model, max_context:m.max_context, compress_ratio:m.compress_ratio, input_price:m.input_price, output_price:m.output_price, cache_price:m.cache_price };
+      this.modelForm = { id:m.id, base_url:m.base_url, api_key:m.api_key, max_context:m.max_context, compress_ratio:m.compress_ratio, input_price:m.input_price, output_price:m.output_price, cache_price:m.cache_price };
       this.showModelForm = true;
     },
     async saveModel() {

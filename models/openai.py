@@ -23,7 +23,7 @@ class OpenAIModel(BaseModel):
         return headers
 
     def _payload(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]], stream: bool) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {"model": self.config.model, "messages": messages, "stream": stream}
+        payload: Dict[str, Any] = {"model": self.config.id, "messages": messages, "stream": stream}
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"

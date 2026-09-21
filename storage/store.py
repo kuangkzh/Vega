@@ -53,10 +53,8 @@ class Store:
                     );
                     CREATE TABLE IF NOT EXISTS model_configs (
                         id TEXT PRIMARY KEY,
-                        name TEXT,
                         base_url TEXT,
                         api_key TEXT,
-                        model TEXT,
                         max_context INTEGER,
                         compress_ratio REAL,
                         input_price REAL,
@@ -66,6 +64,25 @@ class Store:
                     );
                     """
                 )
+                # 迁移：早期版本的 model_configs 含 name/model 列，直接重建（模型配置由 seed_model_config 重灌）
+                cols = {r[1] for r in conn.execute("PRAGMA table_info(model_configs)").fetchall()}
+                if "name" in cols or "model" in cols:
+                    conn.execute("DROP TABLE model_configs")
+                    conn.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS model_configs (
+                            id TEXT PRIMARY KEY,
+                            base_url TEXT,
+                            api_key TEXT,
+                            max_context INTEGER,
+                            compress_ratio REAL,
+                            input_price REAL,
+                            output_price REAL,
+                            cache_price REAL,
+                            active INTEGER DEFAULT 0
+                        )
+                        """
+                    )
                 conn.commit()
             finally:
                 conn.close()
@@ -187,10 +204,10 @@ class Store:
             conn = self._conn()
             try:
                 conn.execute(
-                    "INSERT OR REPLACE INTO model_configs(id, name, base_url, api_key, model, max_context, "
+                    "INSERT OR REPLACE INTO model_configs(id, base_url, api_key, max_context, "
                     "compress_ratio, input_price, output_price, cache_price, active) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                    (c.id, c.name, c.base_url, c.api_key, c.model, c.max_context, c.compress_ratio,
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (c.id, c.base_url, c.api_key, c.max_context, c.compress_ratio,
                      c.input_price, c.output_price, c.cache_price, 1 if c.active else 0),
                 )
                 conn.commit()
@@ -247,10 +264,8 @@ class Store:
     def _row_to_model(row: sqlite3.Row) -> ModelConfig:
         return ModelConfig(
             id=row["id"],
-            name=str(row["name"] or row["id"]),
             base_url=str(row["base_url"] or ""),
             api_key=str(row["api_key"] or ""),
-            model=str(row["model"] or ""),
             max_context=int(row["max_context"] or 128000),
             compress_ratio=float(row["compress_ratio"] or 0.8),
             input_price=float(row["input_price"] or 0.0),
