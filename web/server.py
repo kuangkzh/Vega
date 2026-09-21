@@ -280,7 +280,6 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         filtered = {k: data[k] for k in allowed if k in data}
         deep_merge(runtime.config, filtered)
         deep_merge(config, filtered)
-        runtime.reload_plugin_configs()
         if config_path:
             try:
                 with open(config_path, "w", encoding="utf-8") as fh:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 
@@ -20,6 +21,39 @@ def _shell_argv(command: str) -> list:
             return ["bash", "-c", command]
         return ["cmd", "/c", command]
     return ["bash", "-c", command]
+
+
+_SHELL_LEVEL = {"denied": "Denied", "human_review": "HumanReview", "agent_review": "AgentReview", "trusted": "Trusted"}
+
+
+def _is_inside(cwd, path):
+    if not cwd:
+        return True
+    try:
+        return os.path.commonpath([os.path.abspath(cwd), os.path.abspath(path)]) == os.path.abspath(cwd)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def file_permission(config, args, cwd):
+    """文件权限校验：路径在 cwd 内取 permission.cwd，外取 permission.external。"""
+    perm = config.get("permission") or {}
+    if _is_inside(cwd, str(args.get("path") or "")):
+        return str(perm.get("cwd") or perm.get("default") or "Denied")
+    return str(perm.get("external") or perm.get("default") or "Denied")
+
+
+def shell_permission(config, args, _cwd):
+    """shell 权限校验：命令匹配 regex_list 四组正则，未命中回退 permission.default。"""
+    regex_list = config.get("regex_list") or {}
+    for key in ("denied", "human_review", "agent_review", "trusted"):
+        for pat in regex_list.get(key) or []:
+            try:
+                if re.search(str(pat), str(args.get("command") or "")):
+                    return _SHELL_LEVEL[key]
+            except re.error:
+                continue
+    return str((config.get("permission") or {}).get("default") or "Denied")
 
 
 @register_plugin(
@@ -69,6 +103,7 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
         "permission": {"type": "permission-level", "keys": ("default",)},
         "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
     },
+    resolve_permission=shell_permission,
 )
 def run_shell(ctx, command: str):
     try:
@@ -92,6 +127,7 @@ def run_shell(ctx, command: str):
         "required": ["path"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
+    resolve_permission=file_permission,
 )
 def read_file(ctx, path: str):
     p = _abs(ctx.cwd, str(path or ""))
@@ -118,6 +154,7 @@ def read_file(ctx, path: str):
         "required": ["path"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
+    resolve_permission=file_permission,
 )
 def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = "", replace: str = ""):
     p = _abs(ctx.cwd, str(path or ""))
@@ -181,6 +218,7 @@ def web_fetch(ctx, url: str):
         "permission": {"type": "permission-level", "keys": ("default",)},
         "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
     },
+    resolve_permission=shell_permission,
 )
 def run_shell_async(ctx, task_name: str, command: str):
     tm = ctx.runtime.task_manager

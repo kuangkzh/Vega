@@ -9,11 +9,10 @@ import re
 import sys
 import threading
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 DEFAULT_LEVEL = "Denied"
-LEVELS = ("Denied", "Trusted", "AgentReview", "HumanReview")
 MAX_RESULT_LEN = 8000
 
 
@@ -43,81 +42,9 @@ _REGISTRY: Dict[str, "Plugin"] = {}
 PermissionResolver = Callable[[Dict[str, Any], Dict[str, Any], str], str]
 
 
-def _is_inside(cwd: str, path: str) -> bool:
-    if not cwd:
-        return True
-    try:
-        return os.path.commonpath([os.path.abspath(cwd), os.path.abspath(path)]) == os.path.abspath(cwd)
-    except Exception:  # noqa: BLE001
-        return False
-
-
-# ---------- 校验逻辑（resolve_permission）----------
-# 每个解析器只读「该插件自己的配置」config = {"permission": {...}, ...}
-#（由 config 表单 schema 的默认值 + config.json 的 plugins.<name> 覆盖值解析而来）。
-
 def default_permission(config: Dict[str, Any], _args: Dict[str, Any], _cwd: str) -> str:
-    """通用权限点：读 config.permission.default。"""
+    """通用默认权限解析：读插件配置 permission.default，缺省 Denied。"""
     return str((config.get("permission") or {}).get("default") or DEFAULT_LEVEL)
-
-
-def file_permission(config: Dict[str, Any], args: Dict[str, Any], cwd: str) -> str:
-    """文件权限点：路径在 cwd 内取 permission.cwd，外取 permission.external。"""
-    perm = config.get("permission") or {}
-    if _is_inside(cwd, str(args.get("path") or "")):
-        return str(perm.get("cwd") or perm.get("default") or DEFAULT_LEVEL)
-    return str(perm.get("external") or perm.get("default") or DEFAULT_LEVEL)
-
-
-_SHELL_LEVEL = {"denied": "Denied", "human_review": "HumanReview", "agent_review": "AgentReview", "trusted": "Trusted"}
-
-
-def shell_permission(config: Dict[str, Any], args: Dict[str, Any], _cwd: str) -> str:
-    """shell 权限点：命令匹配 regex_list 四组正则，未命中回退 permission.default。"""
-    regex_list = config.get("regex_list") or {}
-    for key in ("denied", "human_review", "agent_review", "trusted"):
-        for pat in regex_list.get(key) or []:
-            try:
-                if re.search(str(pat), str(args.get("command") or "")):
-                    return _SHELL_LEVEL[key]
-            except re.error:
-                continue
-    return str((config.get("permission") or {}).get("default") or DEFAULT_LEVEL)
-
-
-def _infer_resolver(config_schema: Dict[str, Any]) -> PermissionResolver:
-    """按 config 表单 schema 推断校验逻辑：含 regex_list → shell；permission.keys 含 cwd/external → file；否则 default。"""
-    if "regex_list" in config_schema:
-        return shell_permission
-    permission_keys = tuple((config_schema.get("permission") or {}).get("keys") or ())
-    if "cwd" in permission_keys or "external" in permission_keys:
-        return file_permission
-    return default_permission
-
-
-def _schema_defaults(config_schema: Dict[str, Any]) -> Dict[str, Any]:
-    """由表单 schema 生成安全默认值（levels → 每个 key "Denied"；textlist → 每个 key []）。"""
-    out: Dict[str, Any] = {}
-    for field, spec in (config_schema or {}).items():
-        keys = tuple(spec.get("keys") or ())
-        if spec.get("type") == "permission-level":
-            out[field] = {k: DEFAULT_LEVEL for k in keys}
-        elif spec.get("type") == "textlist":
-            out[field] = {k: [] for k in keys}
-        else:
-            out[field] = {}
-    return out
-
-
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-    """深合并 override 进 base（返回新 dict）。"""
-    result = dict(base)
-    for k, v in (override or {}).items():
-        if isinstance(v, dict) and isinstance(result.get(k), dict):
-            result[k] = _deep_merge(result[k], v)
-        else:
-            result[k] = v
-    return result
 
 
 def _arg_names(fn: Callable[..., Any]) -> Tuple[str, ...]:
@@ -156,7 +83,7 @@ def register_plugin(
     description: str,
     parameters: Dict[str, Any],
     config: Optional[Dict[str, Any]] = None,
-    resolve_permission: Optional[PermissionResolver] = None,
+    resolve_permission: PermissionResolver = default_permission,
     msg_template: Optional[str] = None,
     truncate: bool = True,
 ):
@@ -164,9 +91,10 @@ def register_plugin(
 
     - name 自动取 func.__name__，无需传 name。
     - description / parameters：函数说明与工具参数 JSON Schema（显式，不再从 docstring 推导）。
-    - config：插件所需配置的「表单 schema」（字段 → {type, keys}），前端据此生成配置表单，运行时据此解析插件配置。
+    - config：插件所需配置的「表单 schema」（字段 → {type, keys}），前端据此生成配置表单。
       可省略；缺省为 {"permission": {"type": "permission-level", "keys": ("default",)}}（单权限点 default）。
-    - resolve_permission：可选；缺省按 config 结构自动推断（regex_list→shell；cwd/external→file；否则 default）。
+    - resolve_permission：校验逻辑 (config, args, cwd) -> level；默认 default_permission（读 permission.default）；
+      文件/shell 等特殊权限点由各插件显式传入（定义在 plugins/builtin.py，与插件绑定）。
     - msg_template / truncate：注入输出处理。
     """
     if config is None:
@@ -174,14 +102,13 @@ def register_plugin(
 
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         final_name = fn.__name__
-        resolver = resolve_permission or _infer_resolver(config)
         _REGISTRY[final_name] = Plugin(
             name=final_name,
             fn=fn,
             description=description,
             parameters=parameters,
             config=config,
-            resolve_permission=resolver,
+            resolve_permission=resolve_permission,
             arg_names=_arg_names(fn),
             msg_template=msg_template or "",
             truncate=truncate,
@@ -272,25 +199,15 @@ class PluginRuntime:
         self.pending: Dict[str, PendingApproval] = {}
         self.last_overflow_result: Optional[str] = None
         self._lock = threading.RLock()
-        self.plugin_configs: Dict[str, Dict[str, Any]] = {}
-        self.reload_plugin_configs()
-
-    def get(self, name: str) -> Optional[Plugin]:
-        return self.plugins.get(name)
 
     def plugin_config(self, name: str) -> Dict[str, Any]:
-        return self.plugin_configs.get(name) or {}
-
-    def reload_plugin_configs(self) -> None:
-        """按当前 config 重新解析每个插件的配置（schema 默认值 ← deep_merge ← JSON 覆盖）。"""
-        json_plugins = self.config.get("plugins") or {}
-        for name, p in self.plugins.items():
-            self.plugin_configs[name] = _deep_merge(_schema_defaults(p.config), json_plugins.get(name) or {})
+        """该插件自己的配置：直接取 config.plugins.<name>，缺省空 dict。"""
+        return (self.config.get("plugins") or {}).get(name) or {}
 
     def visible_tools(self) -> List[Dict[str, Any]]:
         tools: List[Dict[str, Any]] = []
         for name, p in self.plugins.items():
-            if p.resolve_permission(self.plugin_configs.get(name) or {}, {}, self.cwd) != "Denied":
+            if p.resolve_permission(self.plugin_config(name), {}, self.cwd) != "Denied":
                 tools.append(p.tool_spec())
         return tools
 
@@ -299,7 +216,7 @@ class PluginRuntime:
         if plugin is None:
             return PluginResult({}, f"未知插件: {plugin_name}")
         args = args or {}
-        level = plugin.resolve_permission(self.plugin_configs.get(plugin_name) or {}, args, self.cwd)
+        level = plugin.resolve_permission(self.plugin_config(plugin_name), args, self.cwd)
         if level == "Denied":
             return PluginResult({}, f"插件 {plugin_name} 被禁止使用 (Denied)")
         if level == "Trusted":
@@ -315,7 +232,7 @@ class PluginRuntime:
         )
 
     def _run_and_wrap(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
-        ctx = PluginContext(cwd=self.cwd, config=self.plugin_configs.get(plugin.name) or {}, runtime=self, session_id=session_id)
+        ctx = PluginContext(cwd=self.cwd, config=self.plugin_config(plugin.name), runtime=self, session_id=session_id)
         try:
             kwargs = {k: v for k, v in args.items() if k in plugin.arg_names}
             res = plugin.fn(ctx, **kwargs)
