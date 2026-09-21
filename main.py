@@ -26,6 +26,9 @@ def main() -> None:
     config_path = os.path.abspath(args.config)
     config = load_config(config_path)
 
+    print(f"[CodeAgent] 工作目录(cwd): {cwd}")
+    print(f"[CodeAgent] 配置文件: {config_path}")
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     plugins_dir = os.path.join(base_dir, "plugins")
     data_dir = os.path.join(base_dir, "data")
