@@ -18,17 +18,20 @@ from web.server import create_app
 def main() -> None:
     parser = argparse.ArgumentParser(description="CodeAgent")
     parser.add_argument("-c", "--config", default="config/default.json")
-    parser.add_argument("-d", "--dir", default=".")
+    parser.add_argument("-d", "--dir")
     args = parser.parse_args()
 
     cwd = os.path.abspath(args.dir)
+    os.makedirs(cwd, exist_ok=True)
     config_path = os.path.abspath(args.config)
     config = load_config(config_path)
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     plugins_dir = os.path.join(base_dir, "plugins")
+    data_dir = os.path.join(base_dir, "data")
 
-    store = Store(os.path.join(cwd, "codeagent.db"))
+    # 数据库统一放在 CodeAgent 自己的 data/ 目录下，不污染 -d 打开的项目
+    store = Store(os.path.join(data_dir, "codeagent.db"))
     seed_model_config(store, config)
     registry = ModelRegistry(store)
 

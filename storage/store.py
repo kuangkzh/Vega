@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 from typing import List, Optional
@@ -12,6 +13,9 @@ from storage.schemas import BackgroundTask, ChatSession, ModelConfig
 class Store:
     def __init__(self, db_path: str):
         self.db_path = db_path
+        parent = os.path.dirname(os.path.abspath(db_path))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         self._lock = threading.RLock()
         self._init_db()
 
