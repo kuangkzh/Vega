@@ -8,22 +8,22 @@
   --app-text: #45403a;
   --app-text-muted: #8a8277;
 
-  /* 强调（柔和青灰绿）*/
-  --app-accent: #6b8f7e;
-  --app-accent-hover: #587a6a;
-  --app-accent-tint: #e8f0eb;
-  --app-accent-rgb: 107, 143, 126;
+  /* 强调（浅蓝）*/
+  --app-accent: #6ca3d6;
+  --app-accent-hover: #4f8bc0;
+  --app-accent-tint: #e6f1fb;
+  --app-accent-rgb: 108, 163, 214;
 
   /* 顶栏 */
-  --app-header-bg: #3e4c45;
+  --app-header-bg: #3b4a5a;
 
   /* 状态（柔化）*/
   --app-success: #71a677;
   --app-success-rgb: 113, 166, 119;
   --app-warning: #c9a05c;
   --app-warning-rgb: 201, 160, 92;
-  --app-danger: #c4695f;
-  --app-danger-rgb: 196, 105, 95;
+  --app-danger: #dd3232;
+  --app-danger-rgb: 200, 30, 30;
   --app-info: #7a8a99;
   --app-info-rgb: 122, 138, 153;
 
@@ -43,7 +43,7 @@
   --bs-body-color: var(--app-text);
   --bs-secondary-color: var(--app-text-muted); /* text-muted 统一暖灰 */
   --bs-border-color: var(--app-border);
-  --bs-dark-rgb: 62, 76, 69;            /* bg-dark → 顶栏深青灰绿 */
+  --bs-dark-rgb: 59, 74, 90;            /* bg-dark → 顶栏蓝灰 */
   --bs-light-rgb: 239, 237, 232;        /* bg-light → 暖 surface-2 */
 }
 
@@ -63,7 +63,11 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .msg-user { background: var(--app-accent-tint); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 .msg-assistant { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 
-/* 主操作：柔和青灰绿（Bootstrap 按钮用 --bs-btn-* 变量）*/
+/* 按钮全局：加粗字 + 粗边框 + 无阴影 */
+.btn { font-weight: 600; --bs-btn-border-width: 2px; }
+.btn, .btn:hover, .btn:focus, .btn:focus-visible, .btn:active { box-shadow: none; }
+
+/* 主操作：柔和橙（Bootstrap 按钮用 --bs-btn-* 变量）*/
 .btn-primary {
   --bs-btn-color: #fff;
   --bs-btn-bg: var(--app-accent);
@@ -119,24 +123,13 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .btn-danger {
   --bs-btn-color: #fff;
   --bs-btn-bg: var(--app-danger);
-  --bs-btn-border-color: var(--app-danger);
+  --bs-btn-border-color: #a51212;
   --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: #ad564e;
-  --bs-btn-hover-border-color: #ad564e;
-  --bs-btn-active-bg: #ad564e;
-  --bs-btn-active-border-color: #ad564e;
+  --bs-btn-hover-bg: #c11515;
+  --bs-btn-hover-border-color: #a51212;
+  --bs-btn-active-bg: #9a1010;
+  --bs-btn-active-border-color: #9a1010;
   --bs-btn-focus-shadow-rgb: var(--app-danger-rgb);
-}
-.btn-outline-danger {
-  --bs-btn-color: #b3554c;
-  --bs-btn-border-color: #b3554c;
-  --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: #b3554c;
-  --bs-btn-hover-border-color: #b3554c;
-  --bs-btn-active-color: #fff;
-  --bs-btn-active-bg: #9d4a42;
-  --bs-btn-active-border-color: #9d4a42;
-  --bs-btn-focus-shadow-rgb: 179, 85, 76;
 }
 
 /* 选中态 / 进度条 / text-primary */
@@ -155,9 +148,8 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .list-group-item.active .session-name { color: #fff; }
 .list-group-item.active .session-meta { color: rgba(255,255,255,.78); }
 
-/* 激活会话项上的操作按钮：浅色描边，保证在强调色底上可读 */
-.list-group-item.active .btn-outline-secondary,
-.list-group-item.active .btn-outline-danger {
+/* 激活会话项：fork 转浅色描边 */
+.list-group-item.active .btn-outline-secondary {
   --bs-btn-color: rgba(255,255,255,.92);
   --bs-btn-border-color: rgba(255,255,255,.6);
   --bs-btn-hover-color: #fff;

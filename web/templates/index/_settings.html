@@ -13,7 +13,7 @@
               <div class="btn-group btn-group-sm">
                 <button v-if="m.id!==activeModel" class="btn btn-outline-primary" @click="activateModel(m.id)">启用</button>
                 <button class="btn btn-outline-secondary" @click="editModel(m)">编辑</button>
-                <button class="btn btn-outline-danger" @click="deleteModel(m.id)">删除</button>
+                <button class="btn btn-danger" @click="deleteModel(m.id)">删除</button>
               </div>
             </div>
             <small class="text-muted">[[ m.base_url ]] · 上限 [[ m.max_context ]] · 压缩 [[ m.compress_ratio ]]</small>
