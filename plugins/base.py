@@ -100,7 +100,7 @@ def _schema_defaults(config_schema: Dict[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
     for field, spec in (config_schema or {}).items():
         keys = tuple(spec.get("keys") or ())
-        if spec.get("type") == "levels":
+        if spec.get("type") == "permission-level":
             out[field] = {k: DEFAULT_LEVEL for k in keys}
         elif spec.get("type") == "textlist":
             out[field] = {k: [] for k in keys}
@@ -148,11 +148,14 @@ class Plugin:
         }
 
 
+DEFAULT_CONFIG: Dict[str, Any] = {"permission": {"type": "permission-level", "keys": ("default",)}}
+
+
 def register_plugin(
     *,
     description: str,
     parameters: Dict[str, Any],
-    config: Dict[str, Any],
+    config: Optional[Dict[str, Any]] = None,
     resolve_permission: Optional[PermissionResolver] = None,
     msg_template: Optional[str] = None,
     truncate: bool = True,
@@ -162,9 +165,12 @@ def register_plugin(
     - name 自动取 func.__name__，无需传 name。
     - description / parameters：函数说明与工具参数 JSON Schema（显式，不再从 docstring 推导）。
     - config：插件所需配置的「表单 schema」（字段 → {type, keys}），前端据此生成配置表单，运行时据此解析插件配置。
+      可省略；缺省为 {"permission": {"type": "permission-level", "keys": ("default",)}}（单权限点 default）。
     - resolve_permission：可选；缺省按 config 结构自动推断（regex_list→shell；cwd/external→file；否则 default）。
     - msg_template / truncate：注入输出处理。
     """
+    if config is None:
+        config = DEFAULT_CONFIG
 
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         final_name = fn.__name__

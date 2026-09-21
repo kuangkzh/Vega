@@ -250,7 +250,7 @@
             <div v-for="p in pluginList" :key="p.name" class="border rounded p-2 mb-2">
               <div class="small fw-bold">[[ p.name ]] <span class="text-muted fw-normal">- [[ p.description ]]</span></div>
               <div v-for="(spec, field) in p.config" :key="field" class="mt-1">
-                <template v-if="spec.type === 'levels'">
+                <template v-if="spec.type === 'permission-level'">
                   <div class="row g-2">
                     <div v-for="k in spec.keys" :key="k" class="col-4">
                       <label class="form-label small mb-0">[[ field ]].[[ k ]]</label>

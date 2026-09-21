@@ -25,7 +25,6 @@ def _shell_argv(command: str) -> list:
 @register_plugin(
     description="暂时没有更多任务可做时调用，暂停 Agent Loop 等待新指令",
     parameters={"type": "object", "properties": {}},
-    config={"permission": {"type": "levels", "keys": ("default",)}},
 )
 def wait_for_new_instruction(ctx):
     return PluginResult({"waiting": True}, "已暂停，等待新指令。")
@@ -41,7 +40,6 @@ def wait_for_new_instruction(ctx):
             "max_lines": {"type": "integer", "description": "最多返回行数（默认50）"},
         },
     },
-    config={"permission": {"type": "levels", "keys": ("default",)}},
 )
 def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_lines: int = 50):
     text = ctx.runtime.last_overflow_result
@@ -68,7 +66,7 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
         "required": ["command"],
     },
     config={
-        "permission": {"type": "levels", "keys": ("default",)},
+        "permission": {"type": "permission-level", "keys": ("default",)},
         "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
     },
 )
@@ -93,7 +91,7 @@ def run_shell(ctx, command: str):
         "properties": {"path": {"type": "string", "description": "文件路径（相对cwd或绝对）"}},
         "required": ["path"],
     },
-    config={"permission": {"type": "levels", "keys": ("cwd", "external")}},
+    config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
 )
 def read_file(ctx, path: str):
     p = _abs(ctx.cwd, str(path or ""))
@@ -119,7 +117,7 @@ def read_file(ctx, path: str):
         },
         "required": ["path"],
     },
-    config={"permission": {"type": "levels", "keys": ("cwd", "external")}},
+    config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
 )
 def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = "", replace: str = ""):
     p = _abs(ctx.cwd, str(path or ""))
@@ -160,7 +158,6 @@ def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = ""
         "properties": {"url": {"type": "string", "description": "要获取的 URL"}},
         "required": ["url"],
     },
-    config={"permission": {"type": "levels", "keys": ("default",)}},
 )
 def web_fetch(ctx, url: str):
     try:
@@ -181,7 +178,7 @@ def web_fetch(ctx, url: str):
         "required": ["task_name", "command"],
     },
     config={
-        "permission": {"type": "levels", "keys": ("default",)},
+        "permission": {"type": "permission-level", "keys": ("default",)},
         "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
     },
 )
@@ -214,7 +211,6 @@ def run_shell_async(ctx, task_name: str, command: str):
         },
         "required": ["uuid"],
     },
-    config={"permission": {"type": "levels", "keys": ("default",)}},
 )
 def request_approval(ctx, uuid: str, task_name: str = "", reason: str = ""):
     return ctx.runtime.request_approval(
@@ -235,7 +231,6 @@ def request_approval(ctx, uuid: str, task_name: str = "", reason: str = ""):
         },
         "required": ["receive_id", "content"],
     },
-    config={"permission": {"type": "levels", "keys": ("default",)}},
 )
 def send_feishu(ctx, receive_id: str, content: str):
     ms = ctx.runtime.message_source
