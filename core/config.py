@@ -26,17 +26,13 @@ def resolve_system_prompt(raw: Any, cwd: str) -> str:
     return ""
 
 
-def seed_model_config(store, config: Dict[str, Any]) -> Optional[ModelConfig]:
-    """把 config 里的初始模型写入 SQLite，若已有活跃模型则保留。"""
-    model_cfg = config.get("model") or {}
-    if not model_cfg:
-        return None
-    mc = ModelConfig.from_dict(model_cfg)
-    existing = store.get_model_config(mc.id)
-    if existing is None:
-        store.upsert_model_config(mc)
-        if store.get_active_model() is None:
-            store.set_active_model(mc.id)
-    elif store.get_active_model() is None:
-        store.set_active_model(mc.id)
-    return store.get_model_config(mc.id)
+def build_model(config: Dict[str, Any], model_id: Optional[str] = None) -> Optional[ModelConfig]:
+    """从 config 的 models 列表 + active_model 选出模型。"""
+    models = config.get("models") or []
+    if model_id:
+        entry = next((m for m in models if m.get("id") == model_id), None)
+    else:
+        entry = next((m for m in models if m.get("id") == config.get("active_model")), None)
+        if entry is None and models:
+            entry = models[0]
+    return ModelConfig.from_dict(entry) if entry else None

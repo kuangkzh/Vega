@@ -1,4 +1,4 @@
-"""模型抽象接口 + 模型配置注册/管理（registry 并入）。"""
+"""模型抽象接口。"""
 from __future__ import annotations
 
 import time
@@ -58,31 +58,6 @@ class BaseModel(ABC):
             output=int(u.get("completion_tokens", 0) or 0),
             cache=cache,
         )
-
-
-class ModelRegistry:
-    """模型配置的增删改查/切换（绑定到一个 Store）。"""
-
-    def __init__(self, store):
-        self._store = store
-
-    def list(self) -> List[ModelConfig]:
-        return self._store.list_model_configs()
-
-    def get(self, model_id: str) -> Optional[ModelConfig]:
-        return self._store.get_model_config(model_id)
-
-    def add(self, config: ModelConfig) -> None:
-        self._store.upsert_model_config(config)
-
-    def remove(self, model_id: str) -> None:
-        self._store.delete_model_config(model_id)
-
-    def set_active(self, model_id: str) -> None:
-        self._store.set_active_model(model_id)
-
-    def active(self) -> Optional[ModelConfig]:
-        return self._store.get_active_model()
 
 
 def retry_call(fn, attempts: int = 3, base_delay: float = 1.0):

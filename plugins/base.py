@@ -136,8 +136,6 @@ class PluginRuntime:
         plugins_dir: str,
         config: Dict[str, Any],
         cwd: str,
-        store,
-        model_registry,
         task_manager=None,
         message_source=None,
         model_provider: Optional[Callable[[Optional[str]], Any]] = None,
@@ -145,8 +143,6 @@ class PluginRuntime:
         self.plugins = discover(plugins_dir)
         self.config = config or {}
         self.cwd = cwd
-        self.store = store
-        self.registry = model_registry
         self.task_manager = task_manager
         self.message_source = message_source
         self.model_provider = model_provider or (lambda _mid=None: None)

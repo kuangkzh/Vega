@@ -23,7 +23,7 @@ def _safe_path(cwd: str, path: str) -> str:
     return full
 
 
-def create_app(config, store, manager, runtime, task_manager, registry, cwd, feishu=None, config_path=None):
+def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, config_path=None):
     app = Flask(__name__)
     auth = Auth((config.get("web") or {}).get("token"))
     auth.init_app(app)
@@ -166,13 +166,17 @@ def create_app(config, store, manager, runtime, task_manager, registry, cwd, fei
             "status": task.status, "start_time": task.start_time, "end_time": task.end_time,
         })
 
-    # ---------- 模型配置 ----------
+    # ---------- 模型配置（存于 config JSON）----------
+    def _persist_config():
+        if config_path:
+            with open(config_path, "w", encoding="utf-8") as fh:
+                json.dump(config, fh, ensure_ascii=False, indent=2)
+
     @app.get("/api/models")
     @login_required
     def api_models():
-        models = registry.list()
-        active = registry.active()
-        return jsonify({"models": [m.to_dict() for m in models], "active": active.id if active else None})
+        models = [ModelConfig.from_dict(m).to_dict() for m in (config.get("models") or [])]
+        return jsonify({"models": models, "active": config.get("active_model")})
 
     @app.post("/api/models")
     @login_required
@@ -181,7 +185,16 @@ def create_app(config, store, manager, runtime, task_manager, registry, cwd, fei
         mc = ModelConfig.from_dict(data)
         if not mc.id:
             return jsonify({"error": "缺少 id"}), 400
-        registry.add(mc)
+        models = config.setdefault("models", [])
+        for i, m in enumerate(models):
+            if m.get("id") == mc.id:
+                models[i] = mc.to_dict()
+                break
+        else:
+            models.append(mc.to_dict())
+        if not config.get("active_model"):
+            config["active_model"] = mc.id
+        _persist_config()
         return jsonify(mc.to_dict())
 
     @app.put("/api/models/<mid>")
@@ -190,19 +203,32 @@ def create_app(config, store, manager, runtime, task_manager, registry, cwd, fei
         data = request.get_json(force=True, silent=True) or {}
         data["id"] = mid
         mc = ModelConfig.from_dict(data)
-        registry.add(mc)
+        models = config.setdefault("models", [])
+        for i, m in enumerate(models):
+            if m.get("id") == mid:
+                models[i] = mc.to_dict()
+                break
+        else:
+            models.append(mc.to_dict())
+        _persist_config()
         return jsonify(mc.to_dict())
 
     @app.delete("/api/models/<mid>")
     @login_required
     def api_delete_model(mid):
-        registry.remove(mid)
+        config["models"] = [m for m in (config.get("models") or []) if m.get("id") != mid]
+        if config.get("active_model") == mid:
+            config["active_model"] = config["models"][0]["id"] if config["models"] else None
+        _persist_config()
         return jsonify({"ok": True})
 
     @app.post("/api/models/<mid>/activate")
     @login_required
     def api_activate_model(mid):
-        registry.set_active(mid)
+        if not any(m.get("id") == mid for m in (config.get("models") or [])):
+            return jsonify({"error": "not found"}), 404
+        config["active_model"] = mid
+        _persist_config()
         return jsonify({"ok": True})
 
     @app.get("/api/plugins")

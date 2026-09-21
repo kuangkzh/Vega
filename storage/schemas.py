@@ -37,7 +37,6 @@ class ModelConfig:
     input_price: float = 0.0
     output_price: float = 0.0
     cache_price: float = 0.0
-    active: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -54,7 +53,6 @@ class ModelConfig:
             input_price=float(d.get("input_price") or 0.0),
             output_price=float(d.get("output_price") or 0.0),
             cache_price=float(d.get("cache_price") or 0.0),
-            active=bool(d.get("active", False)),
         )
 
 

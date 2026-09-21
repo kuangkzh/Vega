@@ -1,15 +1,18 @@
 {
   "system_prompt": "You are CodeAgent, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
-  "model": {
-    "id": "gpt-4o",
-    "base_url": "https://api.openai.com/v1",
-    "api_key": "",
-    "max_context": 128000,
-    "compress_ratio": 0.8,
-    "input_price": 0.0,
-    "output_price": 0.0,
-    "cache_price": 0.0
-  },
+  "models": [
+    {
+      "id": "gpt-4o",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "",
+      "max_context": 128000,
+      "compress_ratio": 0.8,
+      "input_price": 0.0,
+      "output_price": 0.0,
+      "cache_price": 0.0
+    }
+  ],
+  "active_model": "gpt-4o",
   "retry": 3,
   "approver": {
     "model": "gpt-4o",

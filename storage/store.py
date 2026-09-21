@@ -7,7 +7,7 @@ import sqlite3
 import threading
 from typing import List, Optional
 
-from storage.schemas import BackgroundTask, ChatSession, ModelConfig
+from storage.schemas import BackgroundTask, ChatSession
 
 
 class Store:
@@ -51,38 +51,8 @@ class Store:
                         result TEXT,
                         logs TEXT
                     );
-                    CREATE TABLE IF NOT EXISTS model_configs (
-                        id TEXT PRIMARY KEY,
-                        base_url TEXT,
-                        api_key TEXT,
-                        max_context INTEGER,
-                        compress_ratio REAL,
-                        input_price REAL,
-                        output_price REAL,
-                        cache_price REAL,
-                        active INTEGER DEFAULT 0
-                    );
                     """
                 )
-                # 迁移：早期版本的 model_configs 含 name/model 列，直接重建（模型配置由 seed_model_config 重灌）
-                cols = {r[1] for r in conn.execute("PRAGMA table_info(model_configs)").fetchall()}
-                if "name" in cols or "model" in cols:
-                    conn.execute("DROP TABLE model_configs")
-                    conn.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS model_configs (
-                            id TEXT PRIMARY KEY,
-                            base_url TEXT,
-                            api_key TEXT,
-                            max_context INTEGER,
-                            compress_ratio REAL,
-                            input_price REAL,
-                            output_price REAL,
-                            cache_price REAL,
-                            active INTEGER DEFAULT 0
-                        )
-                        """
-                    )
                 conn.commit()
             finally:
                 conn.close()
@@ -196,80 +166,4 @@ class Store:
             params=json.loads(row["params"] or "{}"),
             result=json.loads(row["result"] or "{}"),
             logs=str(row["logs"] or ""),
-        )
-
-    # ---------- 模型配置 ----------
-    def upsert_model_config(self, c: ModelConfig) -> None:
-        with self._lock:
-            conn = self._conn()
-            try:
-                conn.execute(
-                    "INSERT OR REPLACE INTO model_configs(id, base_url, api_key, max_context, "
-                    "compress_ratio, input_price, output_price, cache_price, active) "
-                    "VALUES (?,?,?,?,?,?,?,?,?)",
-                    (c.id, c.base_url, c.api_key, c.max_context, c.compress_ratio,
-                     c.input_price, c.output_price, c.cache_price, 1 if c.active else 0),
-                )
-                conn.commit()
-            finally:
-                conn.close()
-
-    def get_model_config(self, model_id: str) -> Optional[ModelConfig]:
-        with self._lock:
-            conn = self._conn()
-            try:
-                row = conn.execute("SELECT * FROM model_configs WHERE id=?", (model_id,)).fetchone()
-                return self._row_to_model(row) if row else None
-            finally:
-                conn.close()
-
-    def list_model_configs(self) -> List[ModelConfig]:
-        with self._lock:
-            conn = self._conn()
-            try:
-                rows = conn.execute("SELECT * FROM model_configs ORDER BY id").fetchall()
-                return [self._row_to_model(r) for r in rows]
-            finally:
-                conn.close()
-
-    def delete_model_config(self, model_id: str) -> None:
-        with self._lock:
-            conn = self._conn()
-            try:
-                conn.execute("DELETE FROM model_configs WHERE id=?", (model_id,))
-                conn.commit()
-            finally:
-                conn.close()
-
-    def set_active_model(self, model_id: str) -> None:
-        with self._lock:
-            conn = self._conn()
-            try:
-                conn.execute("UPDATE model_configs SET active=0")
-                conn.execute("UPDATE model_configs SET active=1 WHERE id=?", (model_id,))
-                conn.commit()
-            finally:
-                conn.close()
-
-    def get_active_model(self) -> Optional[ModelConfig]:
-        with self._lock:
-            conn = self._conn()
-            try:
-                row = conn.execute("SELECT * FROM model_configs WHERE active=1 LIMIT 1").fetchone()
-                return self._row_to_model(row) if row else None
-            finally:
-                conn.close()
-
-    @staticmethod
-    def _row_to_model(row: sqlite3.Row) -> ModelConfig:
-        return ModelConfig(
-            id=row["id"],
-            base_url=str(row["base_url"] or ""),
-            api_key=str(row["api_key"] or ""),
-            max_context=int(row["max_context"] or 128000),
-            compress_ratio=float(row["compress_ratio"] or 0.8),
-            input_price=float(row["input_price"] or 0.0),
-            output_price=float(row["output_price"] or 0.0),
-            cache_price=float(row["cache_price"] or 0.0),
-            active=bool(row["active"]),
         )
