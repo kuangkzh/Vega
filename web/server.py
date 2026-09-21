@@ -238,7 +238,8 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
             {
                 "name": p.name,
                 "description": p.description,
-                "permission_points": list(p.permission_points),
+                "config": p.config,
+                "value": runtime.plugin_config(p.name),
             }
             for p in runtime.plugins.values()
         ]
@@ -249,9 +250,9 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @login_required
     def api_config():
         cfg = json.loads(json.dumps(config, ensure_ascii=False))
-        m = cfg.get("model") or {}
-        if m.get("api_key"):
-            m["api_key"] = "******"
+        for m in cfg.get("models") or []:
+            if isinstance(m, dict) and m.get("api_key"):
+                m["api_key"] = "******"
         f = cfg.get("feishu") or {}
         if f.get("app_secret"):
             f["app_secret"] = "******"
@@ -261,11 +262,12 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @login_required
     def api_save_config():
         data = request.get_json(force=True, silent=True) or {}
-        if isinstance(data.get("model"), dict) and data["model"].get("api_key") == "******":
-            data["model"].pop("api_key", None)
+        for m in data.get("models") or []:
+            if isinstance(m, dict) and m.get("api_key") == "******":
+                m.pop("api_key", None)
         if isinstance(data.get("feishu"), dict) and data["feishu"].get("app_secret") == "******":
             data["feishu"].pop("app_secret", None)
-        allowed = ("system_prompt", "permissions", "approver", "retry", "feishu")
+        allowed = ("system_prompt", "plugins", "approver", "retry", "feishu")
 
         def deep_merge(a, b):
             for k, v in b.items():
@@ -278,6 +280,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         filtered = {k: data[k] for k in allowed if k in data}
         deep_merge(runtime.config, filtered)
         deep_merge(config, filtered)
+        runtime.reload_plugin_configs()
         if config_path:
             try:
                 with open(config_path, "w", encoding="utf-8") as fh:

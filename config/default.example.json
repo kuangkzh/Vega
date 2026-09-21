@@ -29,25 +29,31 @@
     "port": 8000,
     "token": "change-me"
   },
-  "permissions": {
-    "default": "Denied",
-    "external_file": "AgentReview",
-    "shell": {
-      "denied": [],
-      "human_review": [],
-      "agent_review": [],
-      "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
+  "plugins": {
+    "wait_for_new_instruction": { "permission": { "default": "Trusted" } },
+    "get_last_overflow_result": { "permission": { "default": "Trusted" } },
+    "request_approval": { "permission": { "default": "Trusted" } },
+    "read_file": { "permission": { "cwd": "Trusted", "external": "AgentReview" } },
+    "edit_file": { "permission": { "cwd": "AgentReview", "external": "AgentReview" } },
+    "run_shell": {
+      "permission": { "default": "HumanReview" },
+      "regex_list": {
+        "denied": [],
+        "human_review": [],
+        "agent_review": [],
+        "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
+      }
     },
-    "plugins": {
-      "wait_for_new_instruction": { "global": "Trusted" },
-      "get_last_overflow_result": { "global": "Trusted" },
-      "request_approval": { "global": "Trusted" },
-      "read_file": { "global": "AgentReview", "cwd": "Trusted", "external": "AgentReview" },
-      "edit_file": { "global": "AgentReview", "cwd": "AgentReview", "external": "AgentReview" },
-      "run_shell": { "global": "HumanReview" },
-      "run_shell_async": { "global": "HumanReview" },
-      "web_fetch": { "global": "AgentReview" },
-      "send_feishu": { "global": "AgentReview" }
-    }
+    "run_shell_async": {
+      "permission": { "default": "HumanReview" },
+      "regex_list": {
+        "denied": [],
+        "human_review": [],
+        "agent_review": [],
+        "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
+      }
+    },
+    "web_fetch": { "permission": { "default": "AgentReview" } },
+    "send_feishu": { "permission": { "default": "AgentReview" } }
   }
 }

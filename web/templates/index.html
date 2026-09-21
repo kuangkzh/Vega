@@ -246,35 +246,24 @@
             <div v-if="config.feishu.app_secret==='******'" class="text-warning small mt-1">App Secret 已脱敏，留空则保留原值</div>
           </div></div>
 
-          <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">权限</h6></div><div class="card-body">
-            <div class="row g-2">
-              <div class="col-6"><label class="form-label small mb-0">默认等级</label>
-                <select v-model="config.permissions.default" class="form-select form-select-sm"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select>
-              </div>
-              <div class="col-6"><label class="form-label small mb-0">cwd 外文件默认</label>
-                <select v-model="config.permissions.external_file" class="form-select form-select-sm"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select>
-              </div>
-            </div>
-
-            <label class="form-label small mb-0 mt-2">Shell 权限正则（每行一条）</label>
-            <div class="row g-2">
-              <div class="col-6"><label class="form-label small mb-0">denied</label><textarea v-model="shell.denied" class="form-control form-control-sm" rows="2"></textarea></div>
-              <div class="col-6"><label class="form-label small mb-0">human_review</label><textarea v-model="shell.human_review" class="form-control form-control-sm" rows="2"></textarea></div>
-              <div class="col-6"><label class="form-label small mb-0">agent_review</label><textarea v-model="shell.agent_review" class="form-control form-control-sm" rows="2"></textarea></div>
-              <div class="col-6"><label class="form-label small mb-0">trusted</label><textarea v-model="shell.trusted" class="form-control form-control-sm" rows="2"></textarea></div>
-            </div>
-
-            <label class="form-label small mb-0 mt-2">插件权限</label>
+          <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">插件配置</h6></div><div class="card-body">
             <div v-for="p in pluginList" :key="p.name" class="border rounded p-2 mb-2">
               <div class="small fw-bold">[[ p.name ]] <span class="text-muted fw-normal">- [[ p.description ]]</span></div>
-              <div v-if="p.permission_points.length === 0" class="text-muted small">⚠ 由上方 Shell 正则名单控制</div>
-              <div v-else class="row g-2 mt-1">
-                <template v-if="p.permission_points.includes('cwd')">
-                  <div class="col-4"><label class="form-label small mb-0">global</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].global"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
-                  <div class="col-4"><label class="form-label small mb-0">cwd 内</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].cwd"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
-                  <div class="col-4"><label class="form-label small mb-0">cwd 外</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].external"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
+              <div v-for="(spec, field) in p.config" :key="field" class="mt-1">
+                <template v-if="spec.type === 'levels'">
+                  <div class="row g-2">
+                    <div v-for="k in spec.keys" :key="k" class="col-4">
+                      <label class="form-label small mb-0">[[ field ]].[[ k ]]</label>
+                      <select v-model="p.value[field][k]" class="form-select form-select-sm"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select>
+                    </div>
+                  </div>
                 </template>
-                <div v-else class="col-12"><select class="form-select form-select-sm" v-model="pluginPerms[p.name].global"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
+                <template v-else-if="spec.type === 'textlist'">
+                  <div v-for="k in spec.keys" :key="k" class="mb-1">
+                    <label class="form-label small mb-0">[[ field ]].[[ k ]]（每行一条）</label>
+                    <textarea class="form-control form-control-sm" rows="2" :value="(p.value[field][k] || []).join('\n')" @input="setTextlist(p.value[field], k, $event)"></textarea>
+                  </div>
+                </template>
               </div>
             </div>
           </div></div>
@@ -301,8 +290,7 @@ const app = Vue.createApp({
       config: null, models: [], activeModel: null,
       showModelForm: false, modelEdit: null,
       modelForm: { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 },
-      pluginList: [], pluginPerms: {},
-      shell: { denied:'', human_review:'', agent_review:'', trusted:'' },
+      pluginList: [],
     };
   },
   computed: {
@@ -427,50 +415,22 @@ const app = Vue.createApp({
     },
     async loadSettings() {
       this.config = await (await this.api('/api/config')).json();
-      this.config.permissions = this.config.permissions || {};
-      this.config.permissions.shell = this.config.permissions.shell || {};
-      this.config.permissions.plugins = this.config.permissions.plugins || {};
       this.config.approver = this.config.approver || {};
       this.config.feishu = this.config.feishu || {};
-      this.shell = {
-        denied: (this.config.permissions.shell.denied || []).join('\n'),
-        human_review: (this.config.permissions.shell.human_review || []).join('\n'),
-        agent_review: (this.config.permissions.shell.agent_review || []).join('\n'),
-        trusted: (this.config.permissions.shell.trusted || []).join('\n'),
-      };
       this.pluginList = await (await this.api('/api/plugins')).json();
-      const def = this.config.permissions.default || 'Denied';
-      const ext = this.config.permissions.external_file || 'AgentReview';
-      const pps = {};
-      for (const p of this.pluginList) {
-        const cur = this.config.permissions.plugins[p.name] || {};
-        pps[p.name] = { global: cur.global || def, cwd: cur.cwd || def, external: cur.external || ext };
-      }
-      this.pluginPerms = pps;
       const d = await (await this.api('/api/models')).json();
       this.models = d.models; this.activeModel = d.active;
     },
-    _lines(s) { return (s || '').split('\n').map(x => x.trim()).filter(x => x); },
+    setTextlist(obj, key, event) { obj[key] = event.target.value.split('\n').map(x => x.trim()).filter(x => x); },
     async saveConfig() {
-      this.config.permissions.shell.denied = this._lines(this.shell.denied);
-      this.config.permissions.shell.human_review = this._lines(this.shell.human_review);
-      this.config.permissions.shell.agent_review = this._lines(this.shell.agent_review);
-      this.config.permissions.shell.trusted = this._lines(this.shell.trusted);
-      const pp = {};
-      for (const p of this.pluginList) {
-        const pts = p.permission_points || ['global'];
-        if (pts.length === 0) continue;
-        const obj = {};
-        for (const k of pts) obj[k] = this.pluginPerms[p.name] ? this.pluginPerms[p.name][k] : undefined;
-        pp[p.name] = obj;
-      }
-      this.config.permissions.plugins = pp;
+      const plugins = {};
+      for (const p of this.pluginList) plugins[p.name] = p.value;
       const payload = {
         system_prompt: this.config.system_prompt,
         retry: this.config.retry,
         approver: this.config.approver,
         feishu: this.config.feishu,
-        permissions: this.config.permissions,
+        plugins,
       };
       await this.api('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       await this.loadSettings();
