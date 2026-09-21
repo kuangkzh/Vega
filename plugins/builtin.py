@@ -1,0 +1,301 @@
+"""内置基础插件（合并为单文件）。"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+from typing import Any, Dict
+
+import requests
+
+from plugins.base import DEFAULT_LEVEL, Plugin, PluginResult
+
+_SHELL_LEVEL = {"denied": "Denied", "human_review": "HumanReview", "agent_review": "AgentReview", "trusted": "Trusted"}
+
+
+def _resolve_shell_permission(config: Dict[str, Any], command: str) -> str:
+    """命令依次匹配 denied→human_review→agent_review→trusted 四组正则，首命中即用；否则 HumanReview。"""
+    shell_cfg = (config.get("permissions") or {}).get("shell") or {}
+    for key in ("denied", "human_review", "agent_review", "trusted"):
+        for pat in shell_cfg.get(key) or []:
+            try:
+                if re.search(str(pat), command or ""):
+                    return _SHELL_LEVEL[key]
+            except re.error:
+                continue
+    return "HumanReview"
+
+
+def _is_inside(cwd: str, path: str) -> bool:
+    if not cwd:
+        return True
+    try:
+        return os.path.commonpath([os.path.abspath(cwd), os.path.abspath(path)]) == os.path.abspath(cwd)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _abs(cwd: str, path: str) -> str:
+    return path if os.path.isabs(path) else os.path.join(cwd, path)
+
+
+def _shell_argv(command: str) -> list:
+    if os.name == "nt":
+        if shutil.which("bash"):
+            return ["bash", "-c", command]
+        return ["cmd", "/c", command]
+    return ["bash", "-c", command]
+
+
+class WaitForNewInstruction(Plugin):
+    name = "wait_for_new_instruction"
+    description = "暂时没有更多任务可做时调用，暂停 Agent Loop 等待新指令"
+    parameters = {"type": "object", "properties": {}}
+
+    def run(self, ctx, args):
+        return PluginResult({"waiting": True}, "已暂停，等待新指令。")
+
+
+class GetLastOverflowResult(Plugin):
+    name = "get_last_overflow_result"
+    description = "获取上一次超长结果（可按行号或关键词筛选，限制返回行数）"
+    parameters = {
+        "type": "object",
+        "properties": {
+            "keyword": {"type": "string", "description": "只返回包含该关键词的行"},
+            "start_line": {"type": "integer", "description": "起始行号（从1开始）"},
+            "max_lines": {"type": "integer", "description": "最多返回行数（默认50）"},
+        },
+    }
+
+    def run(self, ctx, args):
+        text = ctx.runtime.last_overflow_result
+        if not text:
+            return PluginResult({}, "当前没有「上一次超长结果」可查。")
+        keyword = args.get("keyword")
+        start_line = args.get("start_line")
+        max_lines = args.get("max_lines") or 50
+        lines = text.split("\n")
+        picked = []
+        for i, ln in enumerate(lines, 1):
+            if keyword and keyword not in ln:
+                continue
+            if start_line and i < int(start_line):
+                continue
+            picked.append(f"{i}\t{ln}")
+            if len(picked) >= int(max_lines):
+                break
+        return PluginResult("\n".join(picked), f"匹配 {len(picked)} 行（原始共 {len(lines)} 行）")
+
+
+class RunShell(Plugin):
+    name = "run_shell"
+    description = "通过 bash 执行 shell 命令"
+    parameters = {
+        "type": "object",
+        "properties": {"command": {"type": "string", "description": "要执行的 shell 命令"}},
+        "required": ["command"],
+    }
+
+    def resolve_permission(self, config, args, cwd=""):
+        return _resolve_shell_permission(config, str(args.get("command") or ""))
+
+    def run(self, ctx, args):
+        command = str(args.get("command") or "")
+        try:
+            proc = subprocess.run(_shell_argv(command), cwd=ctx.cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        except subprocess.TimeoutExpired:
+            return PluginResult({}, "命令执行超时（300s）")
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"命令执行失败: {exc}")
+        result = {"stdout": proc.stdout or "", "stderr": proc.stderr or "", "returncode": proc.returncode}
+        msg = f"返回码 {proc.returncode}"
+        if proc.returncode != 0 and proc.stderr:
+            msg += f"，stderr: {proc.stderr[:500]}"
+        return PluginResult(result, msg)
+
+
+class ReadFile(Plugin):
+    name = "read_file"
+    description = "读入一个文件的全部内容（附行号）"
+    parameters = {
+        "type": "object",
+        "properties": {"path": {"type": "string", "description": "文件路径（相对cwd或绝对）"}},
+        "required": ["path"],
+    }
+
+    def resolve_permission(self, config, args, cwd=""):
+        perms = config.get("permissions") or {}
+        plugins = perms.get("plugins") or {}
+        p = plugins.get(self.name) or {}
+        inside = _is_inside(cwd, str(args.get("path") or ""))
+        if inside:
+            return str(p.get("cwd") or p.get("global") or perms.get("default") or DEFAULT_LEVEL)
+        return str(p.get("external") or perms.get("external_file") or perms.get("default") or DEFAULT_LEVEL)
+
+    def run(self, ctx, args):
+        path = _abs(ctx.cwd, str(args.get("path") or ""))
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"读取失败: {exc}")
+        numbered = "\n".join(f"{i}: {ln.rstrip(chr(10))}" for i, ln in enumerate(lines, 1))
+        return PluginResult(numbered, f"共 {len(lines)} 行")
+
+
+class EditFile(Plugin):
+    name = "edit_file"
+    description = "修改文件：按行号替换，或 search/replace 块替换"
+    parameters = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
+            "line": {"type": "integer", "description": "要替换的行号"},
+            "content": {"type": "string", "description": "整行替换时的新内容"},
+            "search": {"type": "string", "description": "search/replace 模式的查找串"},
+            "replace": {"type": "string", "description": "search/replace 模式的替换串"},
+        },
+        "required": ["path"],
+    }
+
+    def resolve_permission(self, config, args, cwd=""):
+        perms = config.get("permissions") or {}
+        plugins = perms.get("plugins") or {}
+        p = plugins.get(self.name) or {}
+        inside = _is_inside(cwd, str(args.get("path") or ""))
+        if inside:
+            return str(p.get("cwd") or p.get("global") or perms.get("default") or DEFAULT_LEVEL)
+        return str(p.get("external") or perms.get("external_file") or perms.get("default") or DEFAULT_LEVEL)
+
+    def run(self, ctx, args):
+        path = _abs(ctx.cwd, str(args.get("path") or ""))
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                original = f.read()
+        except FileNotFoundError:
+            return PluginResult({}, f"文件不存在: {path}")
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"读取失败: {exc}")
+
+        if args.get("search"):
+            search = str(args["search"])
+            if search not in original:
+                return PluginResult({}, f"未找到: {search}")
+            new_content = original.replace(search, str(args.get("replace") or ""))
+        elif isinstance(args.get("line"), int):
+            lines = original.split("\n")
+            ln = int(args["line"])
+            if ln < 1 or ln > len(lines):
+                return PluginResult({}, f"行号越界: {ln}（共{len(lines)}行）")
+            lines[ln - 1] = str(args.get("content") or "")
+            new_content = "\n".join(lines)
+        else:
+            return PluginResult({}, "需提供 line 或 search 参数")
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"写入失败: {exc}")
+        return PluginResult({"changed": True, "path": path}, "已保存修改")
+
+
+class WebFetch(Plugin):
+    name = "web_fetch"
+    description = "获取指定 URL 的内容"
+    parameters = {
+        "type": "object",
+        "properties": {"url": {"type": "string", "description": "要获取的 URL"}},
+        "required": ["url"],
+    }
+
+    def run(self, ctx, args):
+        url = str(args.get("url") or "")
+        try:
+            resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"请求失败: {exc}")
+        return PluginResult({"status_code": resp.status_code, "content": resp.text}, f"HTTP {resp.status_code}")
+
+
+class RunShellAsync(Plugin):
+    name = "run_shell_async"
+    description = "异步执行 shell：给定任务名和命令，后台执行，完成后自动追加结果"
+    parameters = {
+        "type": "object",
+        "properties": {
+            "task_name": {"type": "string", "description": "任务名，用于唯一标识"},
+            "command": {"type": "string", "description": "要执行的 shell 命令"},
+        },
+        "required": ["task_name", "command"],
+    }
+
+    def resolve_permission(self, config, args, cwd=""):
+        return _resolve_shell_permission(config, str(args.get("command") or ""))
+
+    def run(self, ctx, args):
+        task_name = str(args.get("task_name") or "shell")
+        command = str(args.get("command") or "")
+        tm = ctx.runtime.task_manager
+        if tm is None:
+            return PluginResult({}, "后台任务管理器不可用")
+
+        def target():
+            proc = subprocess.Popen(_shell_argv(command), cwd=ctx.cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+            tm.track_subprocess(proc)
+            out, err = proc.communicate()
+            return PluginResult({"stdout": out or "", "stderr": err or "", "returncode": proc.returncode}, f"异步命令返回码 {proc.returncode}")
+
+        try:
+            task_id = tm.submit(task_name, ctx.session_id, target, params={"command": command}, tool_name=self.name)
+        except ValueError as exc:
+            return PluginResult({}, str(exc))
+        return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
+
+
+class RequestApproval(Plugin):
+    name = "request_approval"
+    description = "发起权限审批：填入审批 uuid、任务名、理由，审批通过后自动执行"
+    parameters = {
+        "type": "object",
+        "properties": {
+            "uuid": {"type": "string", "description": "权限审批 uuid"},
+            "task_name": {"type": "string", "description": "任务名"},
+            "reason": {"type": "string", "description": "申请理由"},
+        },
+        "required": ["uuid"],
+    }
+
+    def run(self, ctx, args):
+        return ctx.runtime.request_approval(
+            str(args.get("uuid") or ""),
+            str(args.get("task_name") or ""),
+            str(args.get("reason") or ""),
+            ctx.session_id,
+        )
+
+
+class SendFeishu(Plugin):
+    name = "send_feishu"
+    description = "通过飞书发送一条消息"
+    parameters = {
+        "type": "object",
+        "properties": {
+            "receive_id": {"type": "string", "description": "接收者 open_id/chat_id/email"},
+            "content": {"type": "string", "description": "消息内容"},
+        },
+        "required": ["receive_id", "content"],
+    }
+
+    def run(self, ctx, args):
+        ms = ctx.runtime.message_source
+        if ms is None:
+            return PluginResult({}, "消息源未启用")
+        try:
+            ms.send(str(args.get("receive_id") or ""), str(args.get("content") or ""))
+            return PluginResult({"sent": True}, "已发送")
+        except Exception as exc:  # noqa: BLE001
+            return PluginResult({}, f"发送失败: {exc}")

@@ -1,0 +1,51 @@
+{
+  "system_prompt": "You are CodeAgent, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
+  "model": {
+    "name": "default",
+    "base_url": "https://api.openai.com/v1",
+    "api_key": "",
+    "model": "gpt-4o",
+    "max_context": 128000,
+    "compress_ratio": 0.8,
+    "input_price": 0.0,
+    "output_price": 0.0,
+    "cache_price": 0.0
+  },
+  "retry": 3,
+  "approver": {
+    "model": "default",
+    "prompt": "你是一名权限审批助手。请根据以下工具调用请求判断是否批准。只输出 JSON：{\"decision\":\"approve|reject|escalate\",\"reason\":\"...\"}\n"
+  },
+  "feishu": {
+    "enabled": false,
+    "app_id": "",
+    "app_secret": "",
+    "admin": ""
+  },
+  "web": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "token": "change-me"
+  },
+  "permissions": {
+    "default": "Denied",
+    "external_file": "AgentReview",
+    "shell": {
+      "denied": [],
+      "human_review": [],
+      "agent_review": [],
+      "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
+    },
+    "plugins": {
+      "wait_for_new_instruction": { "global": "Trusted" },
+      "get_last_overflow_result": { "global": "Trusted" },
+      "request_approval": { "global": "Trusted" },
+      "read_file": { "global": "AgentReview", "cwd": "Trusted", "external": "AgentReview" },
+      "edit_file": { "global": "AgentReview", "cwd": "AgentReview", "external": "AgentReview" },
+      "run_shell": { "global": "HumanReview" },
+      "run_shell_async": { "global": "HumanReview" },
+      "web_fetch": { "global": "AgentReview" },
+      "send_feishu": { "global": "AgentReview" }
+    }
+  }
+}
