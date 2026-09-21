@@ -9,7 +9,7 @@ import re
 import sys
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 DEFAULT_LEVEL = "Denied"
@@ -35,6 +35,9 @@ class PendingApproval:
     reason: str = ""
     task_name: str = ""
     task_id: Optional[str] = None
+    event: Any = field(default_factory=threading.Event)
+    approved: bool = False
+    decision_reason: str = ""
 
 
 _REGISTRY: Dict[str, "Plugin"] = {}
@@ -280,33 +283,32 @@ class PluginRuntime:
 
     def approve(self, uuid_: str, approved: bool, reason: str = "") -> PluginResult:
         with self._lock:
-            pa = self.pending.get(uuid_)
+            pa = self.pending.pop(uuid_, None)
         if pa is None:
             return PluginResult({}, f"找不到审批申请 uuid={uuid_}")
-        with self._lock:
-            self.pending.pop(uuid_, None)
+        pa.approved = approved
+        pa.decision_reason = reason or ""
+        pa.event.set()
+        # 通过则把任务从 pending_approval 标记为 running，让 UI 及时过渡
         tm = self.task_manager
-        if not approved:
-            if tm is not None and getattr(tm, "finish_task", None):
-                tm.finish_task(pa.task_id, "done", {"result": {}, "msg": f"审批被拒绝：{reason}"})
-            return PluginResult({}, f"审批被拒绝：{reason}")
-        plugin = self.plugins.get(pa.plugin_name)
-        if plugin is None:
-            return PluginResult({}, f"未知插件: {pa.plugin_name}")
-        if tm is not None and getattr(tm, "run_pending", None):
-            tm.run_pending(
-                pa.task_id or "", pa.session_id,
-                lambda: self._run_and_wrap(plugin, pa.args, pa.session_id),
-                pa.plugin_name,
-            )
-            return PluginResult({}, "审批通过，已启动后台执行。")
-        return self._run_and_wrap(plugin, pa.args, pa.session_id)
+        if approved and tm is not None and pa.task_id:
+            t = tm.store.get_task(pa.task_id)
+            if t:
+                t.status = "running"
+                t.pending_approval = False
+                t.end_time = ""
+                tm.store.save_task(t)
+        return PluginResult({}, "审批通过，后台自动执行。" if approved else f"审批被拒绝：{reason}")
 
     def _start_human_approval(self, pa: PendingApproval) -> PluginResult:
         tm = self.task_manager
         params = {"uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args, "reason": pa.reason, "task_name": pa.task_name}
-        if tm is not None and getattr(tm, "submit_pending", None):
-            task_id = tm.submit_pending(pa.task_name or pa.plugin_name, pa.session_id, params)
+        if tm is not None and getattr(tm, "submit", None):
+            task_id = tm.submit(
+                pa.task_name or pa.plugin_name, pa.session_id,
+                target=lambda: self._approval_target(pa),
+                params=params, tool_name=pa.plugin_name, pending=True,
+            )
             pa.task_id = task_id
         else:
             task_id = pa.uuid
@@ -316,6 +318,16 @@ class PluginRuntime:
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 审批通知失败: {exc}")
         return PluginResult({}, f"已提交后台人工审批（级别=HumanReview），任务标识={task_id}，等待人工批准后自动执行。")
+
+    def _approval_target(self, pa: PendingApproval) -> PluginResult:
+        """人工审批的底层 target：阻塞等人工信号，通过则执行插件，否则返回拒绝。"""
+        pa.event.wait()
+        if pa.approved:
+            plugin = self.plugins.get(pa.plugin_name)
+            if plugin is None:
+                return PluginResult({}, f"未知插件: {pa.plugin_name}")
+            return self._run_and_wrap(plugin, pa.args, pa.session_id)
+        return PluginResult({}, f"审批被拒绝：{pa.decision_reason or '未说明理由'}")
 
     def _run_approver(self, pa: PendingApproval) -> str:
         approver = self.config.get("approver") or {}

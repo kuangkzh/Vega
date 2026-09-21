@@ -60,42 +60,14 @@ class TaskManager:
                     pass
 
     # ---------- 任务 ----------
-    def submit(self, name: str, session_id: Optional[str], target: Callable, params: Optional[Dict[str, Any]] = None, tool_name: Optional[str] = None) -> str:
+    def submit(self, name: str, session_id: Optional[str], target: Callable, params: Optional[Dict[str, Any]] = None, tool_name: Optional[str] = None, pending: bool = False) -> str:
         task_id = self._make_id(name)
-        t = BackgroundTask(id=task_id, name=name, session_id=session_id, start_time=_now_str(), status="running", params=params or {})
+        status = "pending_approval" if pending else "running"
+        t = BackgroundTask(id=task_id, name=name, session_id=session_id, start_time=_now_str(), status=status, pending_approval=pending, params=params or {})
         self.store.save_task(t)
         self.register_cleanup()
         threading.Thread(target=self._execute, args=(task_id, session_id, target, tool_name), daemon=True).start()
         return task_id
-
-    def submit_pending(self, name: str, session_id: Optional[str], params: Optional[Dict[str, Any]] = None) -> str:
-        task_id = self._make_id(name)
-        t = BackgroundTask(id=task_id, name=name, session_id=session_id, start_time=_now_str(), status="pending_approval", pending_approval=True, params=params or {})
-        self.store.save_task(t)
-        self.register_cleanup()
-        return task_id
-
-    def run_pending(self, task_id: str, session_id: Optional[str], target: Callable, tool_name: Optional[str] = None) -> None:
-        if task_id:
-            t = self.store.get_task(task_id)
-            if t:
-                t.status = "running"
-                t.pending_approval = False
-                t.end_time = ""
-                self.store.save_task(t)
-        else:
-            task_id = self._make_id(tool_name or "task")
-        threading.Thread(target=self._execute, args=(task_id, session_id, target, tool_name), daemon=True).start()
-
-    def finish_task(self, task_id: Optional[str], status: str, result_dict: Dict[str, Any]) -> None:
-        if not task_id:
-            return
-        t = self.store.get_task(task_id)
-        if t:
-            t.status = status
-            t.end_time = _now_str()
-            t.result = result_dict
-            self.store.save_task(t)
 
     def _execute(self, task_id: str, session_id: Optional[str], target: Callable, tool_name: Optional[str]) -> None:
         try:

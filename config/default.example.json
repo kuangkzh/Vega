@@ -44,15 +44,6 @@
         "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
       }
     },
-    "run_shell_async": {
-      "permission": { "default": "HumanReview" },
-      "regex_list": {
-        "denied": [],
-        "human_review": [],
-        "agent_review": [],
-        "trusted": ["^ls$", "^pwd$", "^git status$", "^git diff$", "^git log"]
-      }
-    },
     "web_fetch": { "permission": { "default": "AgentReview" } },
     "send_feishu": { "permission": { "default": "AgentReview" } }
   }

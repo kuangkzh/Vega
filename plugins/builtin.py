@@ -93,10 +93,14 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
 
 
 @register_plugin(
-    description="通过 bash 执行 shell 命令",
+    description="通过 bash 执行 shell 命令（is_async=true 时后台执行，完成后自动追加结果）",
     parameters={
         "type": "object",
-        "properties": {"command": {"type": "string", "description": "要执行的 shell 命令"}},
+        "properties": {
+            "command": {"type": "string", "description": "要执行的 shell 命令"},
+            "is_async": {"type": "boolean", "description": "是否异步后台执行（默认 false）"},
+            "task_name": {"type": "string", "description": "异步任务名，用于唯一标识（默认 shell）"},
+        },
         "required": ["command"],
     },
     config={
@@ -105,7 +109,24 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
     },
     resolve_permission=shell_permission,
 )
-def run_shell(ctx, command: str):
+def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
+    if is_async:
+        tm = ctx.runtime.task_manager
+        if tm is None:
+            return PluginResult({}, "后台任务管理器不可用")
+
+        def target():
+            proc = subprocess.Popen(_shell_argv(command), cwd=ctx.cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+            tm.track_subprocess(proc)
+            out, err = proc.communicate()
+            return PluginResult({"stdout": out or "", "stderr": err or "", "returncode": proc.returncode}, f"异步命令返回码 {proc.returncode}")
+
+        try:
+            task_id = tm.submit(task_name or "shell", ctx.session_id, target, params={"command": command}, tool_name="run_shell")
+        except ValueError as exc:
+            return PluginResult({}, str(exc))
+        return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
+
     try:
         proc = subprocess.run(_shell_argv(command), cwd=ctx.cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
     except subprocess.TimeoutExpired:
@@ -202,40 +223,6 @@ def web_fetch(ctx, url: str):
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"请求失败: {exc}")
     return PluginResult({"status_code": resp.status_code, "content": resp.text}, f"HTTP {resp.status_code}")
-
-
-@register_plugin(
-    description="异步执行 shell：给定任务名和命令，后台执行，完成后自动追加结果",
-    parameters={
-        "type": "object",
-        "properties": {
-            "task_name": {"type": "string", "description": "任务名，用于唯一标识"},
-            "command": {"type": "string", "description": "要执行的 shell 命令"},
-        },
-        "required": ["task_name", "command"],
-    },
-    config={
-        "permission": {"type": "permission-level", "keys": ("default",)},
-        "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
-    },
-    resolve_permission=shell_permission,
-)
-def run_shell_async(ctx, task_name: str, command: str):
-    tm = ctx.runtime.task_manager
-    if tm is None:
-        return PluginResult({}, "后台任务管理器不可用")
-
-    def target():
-        proc = subprocess.Popen(_shell_argv(command), cwd=ctx.cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
-        tm.track_subprocess(proc)
-        out, err = proc.communicate()
-        return PluginResult({"stdout": out or "", "stderr": err or "", "returncode": proc.returncode}, f"异步命令返回码 {proc.returncode}")
-
-    try:
-        task_id = tm.submit(task_name, ctx.session_id, target, params={"command": command}, tool_name="run_shell_async")
-    except ValueError as exc:
-        return PluginResult({}, str(exc))
-    return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
 
 
 @register_plugin(
