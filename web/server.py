@@ -205,6 +205,12 @@ def create_app(config, store, manager, runtime, task_manager, registry, cwd, fei
         registry.set_active(mid)
         return jsonify({"ok": True})
 
+    @app.get("/api/plugins")
+    @login_required
+    def api_plugins():
+        plugins = [{"name": p.name, "description": p.description} for p in runtime.plugins.values()]
+        return jsonify(plugins)
+
     # ---------- 设置 ----------
     @app.get("/api/config")
     @login_required
@@ -228,17 +234,17 @@ def create_app(config, store, manager, runtime, task_manager, registry, cwd, fei
             data["feishu"].pop("app_secret", None)
         allowed = ("system_prompt", "permissions", "approver", "retry", "feishu")
 
-        def merge(a, b):
+        def deep_merge(a, b):
             for k, v in b.items():
-                if k not in allowed:
-                    continue
                 if isinstance(v, dict) and isinstance(a.get(k), dict):
-                    merge(a[k], v)
+                    deep_merge(a[k], v)
                 else:
                     a[k] = v
 
-        merge(runtime.config, data)
-        merge(config, data)
+        # 只允许白名单内的顶层字段，嵌套层级做纯深度合并
+        filtered = {k: data[k] for k in allowed if k in data}
+        deep_merge(runtime.config, filtered)
+        deep_merge(config, filtered)
         if config_path:
             try:
                 with open(config_path, "w", encoding="utf-8") as fh:
