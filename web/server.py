@@ -234,7 +234,15 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @app.get("/api/plugins")
     @login_required
     def api_plugins():
-        plugins = [{"name": p.name, "description": p.description} for p in runtime.plugins.values()]
+        plugins = [
+            {
+                "name": p.name,
+                "description": p.description,
+                "permission": p.permission,
+                "permission_points": list(p.permission_points),
+            }
+            for p in runtime.plugins.values()
+        ]
         return jsonify(plugins)
 
     # ---------- 设置 ----------

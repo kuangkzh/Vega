@@ -267,9 +267,9 @@
             <label class="form-label small mb-0 mt-2">插件权限</label>
             <div v-for="p in pluginList" :key="p.name" class="border rounded p-2 mb-2">
               <div class="small fw-bold">[[ p.name ]] <span class="text-muted fw-normal">- [[ p.description ]]</span></div>
-              <div v-if="isShellPlugin(p.name)" class="text-muted small">⚠ 由上方 Shell 正则名单控制</div>
+              <div v-if="p.permission_points.length === 0" class="text-muted small">⚠ 由上方 Shell 正则名单控制</div>
               <div v-else class="row g-2 mt-1">
-                <template v-if="isFilePlugin(p.name)">
+                <template v-if="p.permission_points.includes('cwd')">
                   <div class="col-4"><label class="form-label small mb-0">global</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].global"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
                   <div class="col-4"><label class="form-label small mb-0">cwd 内</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].cwd"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
                   <div class="col-4"><label class="form-label small mb-0">cwd 外</label><select class="form-select form-select-sm" v-model="pluginPerms[p.name].external"><option>Denied</option><option>Trusted</option><option>AgentReview</option><option>HumanReview</option></select></div>
@@ -450,8 +450,6 @@ const app = Vue.createApp({
       const d = await (await this.api('/api/models')).json();
       this.models = d.models; this.activeModel = d.active;
     },
-    isShellPlugin(n) { return n === 'run_shell' || n === 'run_shell_async'; },
-    isFilePlugin(n) { return n === 'read_file' || n === 'edit_file'; },
     _lines(s) { return (s || '').split('\n').map(x => x.trim()).filter(x => x); },
     async saveConfig() {
       this.config.permissions.shell.denied = this._lines(this.shell.denied);
@@ -459,9 +457,12 @@ const app = Vue.createApp({
       this.config.permissions.shell.agent_review = this._lines(this.shell.agent_review);
       this.config.permissions.shell.trusted = this._lines(this.shell.trusted);
       const pp = {};
-      for (const name in this.pluginPerms) {
-        if (this.isShellPlugin(name)) continue;
-        pp[name] = JSON.parse(JSON.stringify(this.pluginPerms[name]));
+      for (const p of this.pluginList) {
+        const pts = p.permission_points || ['global'];
+        if (pts.length === 0) continue;
+        const obj = {};
+        for (const k of pts) obj[k] = this.pluginPerms[p.name] ? this.pluginPerms[p.name][k] : undefined;
+        pp[p.name] = obj;
       }
       this.config.permissions.plugins = pp;
       const payload = {
