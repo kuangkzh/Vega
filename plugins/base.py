@@ -12,6 +12,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from core.config import resolve_prompt
+
 DEFAULT_LEVEL = "Denied"
 MAX_RESULT_LEN = 8000
 
@@ -169,6 +171,24 @@ def format_tool_content(plugin_name: str, result: Any, msg: str = "") -> str:
     if msg:
         parts.append(str(msg))
     return "\n".join(parts)
+
+
+def render_approver_prompt(template: str, plugin: Optional["Plugin"], args: Dict[str, Any], reason: str) -> str:
+    """渲染审批 prompt 槽位。
+
+    支持 {{plugin}}（函数信息，形如「插件名：描述」）、{{args}}（执行参数 JSON）、{{reason}}（申请理由）。
+    """
+    info = ""
+    if plugin is not None:
+        info = f"{plugin.name}：{plugin.description}" if plugin.description else plugin.name
+    slots = {
+        "plugin": info,
+        "args": json.dumps(args or {}, ensure_ascii=False),
+        "reason": reason or "",
+    }
+    for key, val in slots.items():
+        template = template.replace("{{" + key + "}}", val)
+    return template
 
 
 @dataclass
@@ -334,11 +354,15 @@ class PluginRuntime:
         model = self.model_provider(approver.get("model"))
         if model is None:
             return "escalate"
-        prompt = approver.get("prompt") or "你是权限审批助手，请判断是否批准以下工具调用。"
-        payload = {"plugin": pa.plugin_name, "args": pa.args, "reason": pa.reason}
+        system = render_approver_prompt(
+            resolve_prompt(approver.get("prompt"), self.cwd),
+            self.plugins.get(pa.plugin_name),
+            pa.args,
+            pa.reason,
+        )
         messages = [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": "请审批以下请求，只输出 JSON(decision=approve|reject|escalate, reason)：\n" + json.dumps(payload, ensure_ascii=False)},
+            {"role": "system", "content": system},
+            {"role": "user", "content": "请根据以上信息完成审批。"},
         ]
         try:
             resp = model.chat(messages)

@@ -7,7 +7,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from core.config import resolve_system_prompt
+from core.config import resolve_prompt
 from core.context import estimate_tokens, render_slots, summarize
 from plugins.base import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
@@ -53,7 +53,7 @@ class AgentSession:
 
     # ---------- 初始化 ----------
     def _system_content(self) -> str:
-        return render_slots(resolve_system_prompt(self.config.get("system_prompt"), self.cwd), self.cwd)
+        return render_slots(resolve_prompt(self.config.get("system_prompt"), self.cwd), self.cwd)
 
     def _build_messages(self, messages: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         if messages:

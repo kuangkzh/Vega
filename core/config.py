@@ -13,8 +13,11 @@ def load_config(path: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-def resolve_system_prompt(raw: Any, cwd: str) -> str:
-    """system_prompt 允许直接给文本或 {"file": "...md"}。"""
+def resolve_prompt(raw: Any, cwd: str) -> str:
+    """解析 prompt 文案：允许直接给文本或 {"file": "x.md"}（相对 cwd）。
+
+    system_prompt 与 approver.prompt 共用这一套「纯文本 / 文件」解析。
+    """
     if isinstance(raw, str):
         return raw
     if isinstance(raw, dict):
