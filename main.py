@@ -16,7 +16,7 @@ from web.server import create_app
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CodeAgent")
-    parser.add_argument("-c", "--config", default="config/default.json")
+    parser.add_argument("-c", "--config")
     parser.add_argument("-d", "--dir")
     args = parser.parse_args()
 
