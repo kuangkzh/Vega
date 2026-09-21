@@ -7,7 +7,7 @@ import subprocess
 
 import requests
 
-from plugins.base import PluginResult, register_plugin
+from plugins.base import PluginResult, register_plugin, shell_permission
 
 
 def _abs(cwd: str, path: str) -> str:
@@ -53,7 +53,7 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
     return PluginResult("\n".join(picked), f"匹配 {len(picked)} 行（原始共 {len(lines)} 行）")
 
 
-@register_plugin(permission="shell")
+@register_plugin(permission_points=(), resolve_permission=shell_permission)
 def run_shell(ctx, command: str):
     """通过 bash 执行 shell 命令
 
@@ -73,7 +73,7 @@ def run_shell(ctx, command: str):
     return PluginResult(result, msg)
 
 
-@register_plugin(permission="file")
+@register_plugin(permission_points=("global", "cwd", "external"))
 def read_file(ctx, path: str):
     """读入一个文件的全部内容（附行号）
 
@@ -90,7 +90,7 @@ def read_file(ctx, path: str):
     return PluginResult(numbered, f"共 {len(lines)} 行")
 
 
-@register_plugin(permission="file")
+@register_plugin(permission_points=("global", "cwd", "external"))
 def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = "", replace: str = ""):
     """修改文件：按行号替换，或 search/replace 块替换
 
@@ -146,7 +146,7 @@ def web_fetch(ctx, url: str):
     return PluginResult({"status_code": resp.status_code, "content": resp.text}, f"HTTP {resp.status_code}")
 
 
-@register_plugin(permission="shell")
+@register_plugin(permission_points=(), resolve_permission=shell_permission)
 def run_shell_async(ctx, task_name: str, command: str):
     """异步执行 shell：给定任务名和命令，后台执行，完成后自动追加结果
 

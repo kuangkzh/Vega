@@ -1,6 +1,7 @@
 """插件框架：@register_plugin 函数式注册、权限解析、运行时统一包装、审批流程。"""
 from __future__ import annotations
 
+import functools
 import importlib.util
 import inspect
 import json
@@ -86,12 +87,9 @@ def _resolve_shell_permission(config: Dict[str, Any], command: str) -> str:
     return "HumanReview"
 
 
-def _shell_level(_name: str, config: Dict[str, Any], args: Dict[str, Any], _cwd: str) -> str:
+def shell_permission(config: Dict[str, Any], args: Dict[str, Any], _cwd: str = "") -> str:
+    """shell 权限点校验：按命令匹配 denied→human_review→agent_review→trusted 正则名单。"""
     return _resolve_shell_permission(config, str(args.get("command") or ""))
-
-
-_PERMISSION_RESOLVERS = {"global": _global_level, "file": _file_level, "shell": _shell_level}
-_DEFAULT_POINTS = {"global": ("global",), "file": ("global", "cwd", "external"), "shell": ()}
 
 
 def _annotation_type(ann: Any) -> Optional[str]:
@@ -169,7 +167,6 @@ class Plugin:
     description: str = ""
     parameters: Dict[str, Any] = field(default_factory=lambda: {"type": "object", "properties": {}})
     arg_names: Tuple[str, ...] = ()
-    permission: str = "global"
     permission_points: Tuple[str, ...] = ("global",)
     resolve_permission: Optional[PermissionResolver] = None
     msg_template: str = ""
@@ -182,10 +179,7 @@ class Plugin:
         }
 
     def level(self, config: Dict[str, Any], args: Dict[str, Any], cwd: str = "") -> str:
-        if self.resolve_permission is not None:
-            return str(self.resolve_permission(config, args, cwd))
-        resolver = _PERMISSION_RESOLVERS.get(self.permission) or _global_level
-        return str(resolver(self.name, config, args, cwd))
+        return str(self.resolve_permission(config, args, cwd))
 
 
 def _register(
@@ -193,7 +187,6 @@ def _register(
     name: Optional[str],
     description: Optional[str],
     parameters: Optional[Dict[str, Any]],
-    permission: str,
     permission_points: Optional[Sequence[str]],
     resolve_permission: Optional[PermissionResolver],
     msg_template: Optional[str],
@@ -203,7 +196,14 @@ def _register(
     final_name = name or fn.__name__
     desc = description if description is not None else _first_line(doc)
     params = parameters if parameters is not None else _build_parameters(fn, doc)
-    points = tuple(permission_points) if permission_points is not None else _DEFAULT_POINTS.get(permission, ("global",))
+    points = tuple(permission_points) if permission_points is not None else ("global",)
+    # 校验逻辑：显式传入优先；否则按权限点自动推断（含 cwd/external → 文件校验；否则通用 global）
+    if resolve_permission is not None:
+        resolver = resolve_permission
+    elif "cwd" in points or "external" in points:
+        resolver = functools.partial(_file_level, final_name)
+    else:
+        resolver = functools.partial(_global_level, final_name)
     arg_names = tuple(
         p.name for p in list(inspect.signature(fn).parameters.values())[1:]
         if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
@@ -214,9 +214,8 @@ def _register(
         description=desc,
         parameters=params,
         arg_names=arg_names,
-        permission=permission,
         permission_points=points,
-        resolve_permission=resolve_permission,
+        resolve_permission=resolver,
         msg_template=msg_template or "",
         truncate=truncate,
     )
@@ -228,7 +227,6 @@ def register_plugin(
     *,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    permission: str = "global",
     permission_points: Optional[Sequence[str]] = None,
     resolve_permission: Optional[PermissionResolver] = None,
     msg_template: Optional[str] = None,
@@ -236,16 +234,22 @@ def register_plugin(
 ):
     """函数式插件注册：从 docstring 推导 description/parameters，声明权限点与输出处理。
 
+    permission_points：权限点列表（默认 ("global",)），自动进入 /api/plugins，配置页据此生成权限表单。
+    resolve_permission：校验逻辑 (config, args, cwd) -> level；缺省时按权限点自动推断：
+      - 含 cwd/external → 文件校验（按 path 是否在 cwd 内选 cwd/external）
+      - 否则 → 通用校验（plugins.<name>.global）
+      shell 这类特殊权限点：permission_points=() + resolve_permission=shell_permission
+
     支持两种用法：
         @register_plugin
-        @register_plugin(permission="file", msg_template="...")
+        @register_plugin(permission_points=("global", "cwd", "external"), msg_template="...")
     """
     if callable(name):
         fn = name
-        return _register(fn, None, description, parameters, permission, permission_points, resolve_permission, msg_template, truncate)
+        return _register(fn, None, description, parameters, permission_points, resolve_permission, msg_template, truncate)
 
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
-        return _register(fn, name, description, parameters, permission, permission_points, resolve_permission, msg_template, truncate)
+        return _register(fn, name, description, parameters, permission_points, resolve_permission, msg_template, truncate)
 
     return deco
 

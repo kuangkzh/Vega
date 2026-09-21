@@ -238,7 +238,6 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
             {
                 "name": p.name,
                 "description": p.description,
-                "permission": p.permission,
                 "permission_points": list(p.permission_points),
             }
             for p in runtime.plugins.values()
