@@ -2,14 +2,14 @@
   "system_prompt": "You are CodeAgent, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
   "model": {
     "name": "default",
-    "base_url": "http://192.168.11.95:18888/v1",
+    "base_url": "https://api.openai.com/v1",
     "api_key": "",
-    "model": "deepseek-v4.1-flash",
-    "max_context": 1000000,
+    "model": "gpt-4o",
+    "max_context": 128000,
     "compress_ratio": 0.8,
-    "input_price": 1,
-    "output_price":4,
-    "cache_price": 0.1
+    "input_price": 0.0,
+    "output_price": 0.0,
+    "cache_price": 0.0
   },
   "retry": 3,
   "approver": {
@@ -23,8 +23,8 @@
     "admin": ""
   },
   "web": {
-    "host": "0.0.0.0",
-    "port": 17640,
+    "host": "127.0.0.1",
+    "port": 8000,
     "token": "change-me"
   },
   "permissions": {

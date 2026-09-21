@@ -403,3 +403,4 @@ pyrightconfig.json
 .venv/
 venv/
 .vscode/
+config/default.json
