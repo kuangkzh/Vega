@@ -1,1 +1,0 @@
-"""插件目录：内置 + 用户自定义。启动时由 plugins.base.load_plugins 导入，@register_plugin 自注册。"""
