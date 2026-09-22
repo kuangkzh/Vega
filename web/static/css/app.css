@@ -62,6 +62,7 @@ pre { white-space: pre-wrap; font-size: 12px; }
 /* 消息气泡 */
 .msg-user { background: var(--app-accent-tint); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 .msg-assistant { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
+.msg-reasoning { color: var(--app-text-muted); white-space: pre-wrap; word-break: break-word; }
 
 /* 消息卡片：右下角 fork 图标 */
 .msg-wrap { position: relative; }

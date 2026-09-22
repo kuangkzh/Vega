@@ -28,18 +28,25 @@
           <div v-for="(m, i) in messages" :key="i" class="mb-2 msg-wrap">
             <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>
             <div v-else-if="m.role==='assistant'">
-              <details v-if="m.tool_calls" class="msg-assistant">
-                <summary>思考 / 工具调用</summary>
-                <div>[[ m.content ]]</div>
-                <small class="text-muted" v-for="tc in m.tool_calls">→ [[ tc.function.name ]]</small>
+              <details v-if="m.reasoning_content" class="msg-assistant">
+                <summary>思考过程</summary>
+                <pre class="msg-reasoning">[[ m.reasoning_content ]]</pre>
               </details>
-              <div v-else class="msg-assistant"><b>助手：</b><span>[[ m.content ]]</span></div>
+              <details v-if="m.tool_calls" class="msg-assistant">
+                <summary>工具调用</summary>
+                <div v-for="tc in m.tool_calls" class="tool-call mb-2">
+                  <div class="fw-semibold">→ [[ tc.function.name ]]</div>
+                  <pre>[[ formatArgs(tc.function.arguments) ]]</pre>
+                </div>
+              </details>
+              <div v-if="m.content" class="msg-assistant"><b>助手：</b><span>[[ m.content ]]</span></div>
             </div>
             <div v-else-if="m.role==='tool'">
               <details class="msg-assistant">
                 <summary>工具结果：[[ m.name ]]</summary>
                 <pre>[[ m.content ]]</pre>
               </details>
+              <button v-if="m.task_id" type="button" class="btn btn-sm btn-outline-secondary mt-1" @click="openTask(m.task_id)">查看后台任务</button>
             </div>
             <div v-else class="msg-assistant">
               <details>
@@ -57,6 +64,10 @@
             </button>
           </div>
           <div v-for="(m, i) in pending" :key="'p'+i" class="msg-user" style="opacity:.7"><b>用户：</b><span>[[ m.content ]]</span> <span class="badge text-bg-secondary ms-1">排队中</span></div>
+          <details v-if="streamReasoning" class="msg-assistant" :open="streamReasoning && !streamText">
+            <summary>思考过程（实时）</summary>
+            <pre class="msg-reasoning">[[ streamReasoning ]]</pre>
+          </details>
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><span>[[ streamText ]]</span><span class="cursor">▌</span></div>
         </div>
       </div>

@@ -162,6 +162,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         if task is None:
             return jsonify({"error": "not found"}), 404
         return jsonify({
+            "id": task.id, "name": task.name,
             "logs": task.logs, "result": task.result, "params": task.params,
             "status": task.status, "start_time": task.start_time, "end_time": task.end_time,
         })

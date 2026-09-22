@@ -205,17 +205,24 @@ class AgentSession:
         """执行一次流式模型调用：逐段 emit、追加并 emit assistant 消息，返回 (content, tool_calls)。"""
         model = self.model_provider(None)
         content_parts: List[str] = []
+        reasoning_parts: List[str] = []
         tool_calls: List[Dict[str, Any]] = []
         for ev in model.chat_stream(self.messages, tools=tools):
             if ev.kind == "text":
                 content_parts.append(ev.text)
                 self.emit({"type": "text", "content": ev.text})
+            elif ev.kind == "reasoning":
+                reasoning_parts.append(ev.text)
+                self.emit({"type": "reasoning", "content": ev.text})
             elif ev.kind == "tool_calls":
                 tool_calls = ev.tool_calls
             elif ev.kind == "usage" and ev.usage:
                 self._add_usage(ev.usage)
         content = "".join(content_parts)
+        reasoning = "".join(reasoning_parts)
         assistant_msg = {"role": "assistant", "content": content}
+        if reasoning:
+            assistant_msg["reasoning_content"] = reasoning
         if tool_calls:
             assistant_msg["tool_calls"] = tool_calls
         self.messages.append(assistant_msg)
@@ -256,6 +263,8 @@ class AgentSession:
         res = self.runtime.execute(name, args, self.id)
         content = format_tool_content(name, res.result, res.msg)
         tool_msg = {"role": "tool", "tool_call_id": tc.get("id", ""), "name": name, "content": content}
+        if isinstance(res.result, dict) and res.result.get("task_id"):
+            tool_msg["task_id"] = res.result["task_id"]
         self.messages.append(tool_msg)
         self.emit({"type": "message", "message": tool_msg})
         self._persist()

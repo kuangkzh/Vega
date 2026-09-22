@@ -73,6 +73,8 @@ class TaskManager:
         try:
             out = target()
             result, msg = self._normalize(out)
+            if session_id and self.store.load_session(session_id) is None:
+                return  # 会话已删除，丢弃回填，避免重新写回过期任务
             t = self.store.get_task(task_id) or BackgroundTask(id=task_id, name=tool_name or "task", session_id=session_id)
             t.status = "done"
             t.end_time = _now_str()
@@ -84,6 +86,8 @@ class TaskManager:
                 except Exception as exc:  # noqa: BLE001
                     print(f"[task] on_done 失败: {exc}")
         except Exception as exc:  # noqa: BLE001
+            if session_id and self.store.load_session(session_id) is None:
+                return  # 会话已删除，丢弃回填，避免重新写回过期任务
             t = self.store.get_task(task_id) or BackgroundTask(id=task_id, name=tool_name or "task", session_id=session_id)
             t.status = "error"
             t.end_time = _now_str()

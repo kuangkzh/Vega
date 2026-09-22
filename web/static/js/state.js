@@ -2,7 +2,7 @@ window.CAState = {
   data() {
     return {
       loading: true, tab: 'chat',
-      sessions: [], currentSid: null, messages: [], streamText: '', pending: [],
+      sessions: [], currentSid: null, messages: [], streamText: '', streamReasoning: '', pending: [],
       inputText: '', usage: null, maxContext: 0, es: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '',
       gitCurrent: '', gitBranches: '', gitLog: '', gitStatus: '', gitErr: '',

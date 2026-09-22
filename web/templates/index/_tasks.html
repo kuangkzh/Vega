@@ -18,17 +18,11 @@
         <td>[[ t.start_time ]]</td>
         <td>[[ t.status ]]</td>
         <td>
-          <button class="btn btn-sm btn-outline-secondary" @click="toggleTask(t.id)">日志</button>
+          <button class="btn btn-sm btn-outline-secondary" @click="openTask(t.id)">详情</button>
           <button v-if="t.status==='pending_approval'" class="btn btn-sm btn-success" @click="approveTask(t.id, true)">通过</button>
           <button v-if="t.status==='pending_approval'" class="btn btn-sm btn-danger" @click="approveTask(t.id, false)">拒绝</button>
         </td>
       </tr>
     </tbody>
   </table>
-  <div v-if="taskDetail" class="card"><div class="card-body">
-    <h6>状态 [[ taskDetail.status ]]</h6>
-    <pre>params: [[ JSON.stringify(taskDetail.params, null, 2) ]]</pre>
-    <pre>result: [[ JSON.stringify(taskDetail.result, null, 2) ]]</pre>
-    <pre v-if="taskDetail.logs">logs: [[ taskDetail.logs ]]</pre>
-  </div></div>
 </div>

@@ -76,6 +76,7 @@ class SessionManager:
         if sess is not None:
             sess.stop()
             self.store.delete_session(sid)
+            self.store.delete_tasks_by_session(sid)
 
     def send(self, sid: str, text: str, mid: Optional[str] = None) -> Optional[AgentSession]:
         sess = self.get(sid)
@@ -122,7 +123,7 @@ class SessionManager:
             "msg": msg,
         }
         content = format_tool_content(tool_name, payload, msg)
-        tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content}
+        tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content, "task_id": task.id}
         sess.messages.append(tool_msg)
         sess._persist()
         sess.emit({"type": "message", "message": tool_msg})

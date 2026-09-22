@@ -18,7 +18,7 @@ class ModelResponse:
 
 @dataclass
 class StreamEvent:
-    kind: str  # 'text' | 'tool_calls' | 'usage' | 'done'
+    kind: str  # 'text' | 'reasoning' | 'tool_calls' | 'usage' | 'done'
     text: str = ""
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     usage: Optional[TokenUsage] = None

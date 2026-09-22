@@ -1,0 +1,32 @@
+<div v-if="taskDetail" class="modal fade show" tabindex="-1" style="display:block; background:rgba(0,0,0,.5);" @click.self="closeTask">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">后台任务：[[ taskDetail.name ]]</h5>
+        <button type="button" class="btn-close" @click="closeTask"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <span class="badge me-1" :class="taskDetail.status==='done' ? 'text-bg-success' : (taskDetail.status==='error' ? 'text-bg-danger' : (taskDetail.status==='pending_approval' ? 'text-bg-warning' : 'text-bg-secondary'))">[[ taskDetail.status ]]</span>
+          <small class="text-muted">[[ taskDetail.id ]]</small>
+        </div>
+        <p class="mb-1"><b>执行时间：</b>[[ taskDetail.start_time ]]</p>
+        <p class="mb-1" v-if="taskDetail.end_time"><b>完成时间：</b>[[ taskDetail.end_time ]]</p>
+        <h6 class="mt-3">入参 params</h6>
+        <pre>[[ JSON.stringify(taskDetail.params, null, 2) ]]</pre>
+        <h6>结果 result</h6>
+        <pre>[[ JSON.stringify(taskDetail.result, null, 2) ]]</pre>
+        <template v-if="taskDetail.logs">
+          <h6>日志 logs</h6>
+          <pre>[[ taskDetail.logs ]]</pre>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button v-if="taskDetail.status==='pending_approval'" class="btn btn-sm btn-success" @click="approveTask(taskDetail.id, true)">通过</button>
+        <button v-if="taskDetail.status==='pending_approval'" class="btn btn-sm btn-danger" @click="approveTask(taskDetail.id, false)">拒绝</button>
+        <button class="btn btn-sm btn-outline-secondary" @click="openTask(taskDetail.id)">刷新</button>
+        <button class="btn btn-sm btn-secondary" @click="closeTask">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -108,6 +108,15 @@ class Store:
             finally:
                 conn.close()
 
+    def delete_tasks_by_session(self, session_id: str) -> None:
+        with self._lock:
+            conn = self._conn()
+            try:
+                conn.execute("DELETE FROM tasks WHERE session_id=?", (session_id,))
+                conn.commit()
+            finally:
+                conn.close()
+
     @staticmethod
     def _row_to_session(row: sqlite3.Row) -> ChatSession:
         return ChatSession(

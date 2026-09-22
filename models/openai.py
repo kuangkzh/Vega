@@ -80,6 +80,8 @@ class OpenAIModel(BaseModel):
             if not choices:
                 continue
             delta = choices[0].get("delta") or {}
+            if delta.get("reasoning_content"):
+                yield StreamEvent(kind="reasoning", text=delta["reasoning_content"])
             if delta.get("content"):
                 content_parts.append(delta["content"])
                 yield StreamEvent(kind="text", text=delta["content"])

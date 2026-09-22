@@ -241,7 +241,7 @@ def web_fetch(ctx, url: str):
         "properties": {
             "uuid": {"type": "string", "description": "权限审批 uuid"},
             "task_name": {"type": "string", "description": "任务名"},
-            "reason": {"type": "string", "description": "申请理由"},
+            "reason": {"type": "string", "description": "申请理由，请写明必要性"},
         },
         "required": ["uuid"],
     },

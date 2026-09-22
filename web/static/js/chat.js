@@ -2,6 +2,7 @@ window.CAChat = {
   watch: {
     messages: { handler() { this.scrollChat(); }, deep: true },
     streamText() { this.scrollChat(); },
+    streamReasoning() { this.scrollChat(); },
     pending: { handler() { this.scrollChat(); }, deep: true },
     tab(v) { if (v === 'chat') this.scrollChat(); },
   },
@@ -28,6 +29,10 @@ window.CAChat = {
       const s = (t || '').replace(/\s+/g, ' ').trim() || '新会话';
       return s.length > 24 ? s.slice(0, 24) + '…' : s;
     },
+    formatArgs(s) {
+      if (!s) return '';
+      try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; }
+    },
     formatTokens(n) {
       n = Number(n) || 0;
       if (n >= 1e6) return (n / 1e6).toFixed(1) + 'm';
@@ -35,7 +40,7 @@ window.CAChat = {
       return String(n);
     },
     async selectSession(sid) {
-      this.currentSid = sid; this.streamText = ''; this.pending = [];
+      this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
       const s = this.sessions.find(x => x.id === sid);
       if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
       await this.loadMessages(); this.openStream();
@@ -59,6 +64,7 @@ window.CAChat = {
         this.currentSid = null;
         this.messages = [];
         this.streamText = '';
+        this.streamReasoning = '';
         this.pending = [];
         this.usage = null;
         if (this.es) { this.es.close(); this.es = null; }
@@ -71,6 +77,7 @@ window.CAChat = {
       const mid = this.uid();
       await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text, id: mid}) });
       this.streamText = '';
+      this.streamReasoning = '';
       if (!this.es) this.openStream();
     },
     uid() {
@@ -88,18 +95,19 @@ window.CAChat = {
       this.es.onmessage = (ev) => {
         const d = JSON.parse(ev.data);
         if (d.type === 'text') this.streamText += d.content;
+        else if (d.type === 'reasoning') this.streamReasoning += d.content;
         else if (d.type === 'queued') this.pending.push({ id: d.id, content: d.content });
         else if (d.type === 'message') {
           if (d.id) this.pending = this.pending.filter(p => p.id !== d.id);
           this.messages.push(d.message);
-          if (d.message && d.message.role === 'assistant') this.streamText = '';
+          if (d.message && d.message.role === 'assistant') { this.streamText = ''; this.streamReasoning = ''; }
         }
         else if (d.type === 'usage') this.usage = d.usage;
         else if (d.type === 'restart') {
           this.loadSessions().then(() => this.selectSession(d.new_id));
         }
         else if (d.type === 'status' && d.status === 'paused') {
-          this.streamText = ''; this.pending = [];
+          this.streamText = ''; this.streamReasoning = ''; this.pending = [];
           this.loadMessages(); this.loadSessions();
         }
       };
