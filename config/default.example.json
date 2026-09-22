@@ -14,8 +14,8 @@
   ],
   "active_model": "gpt-4o",
   "retry": 3,
-  "summarize": {
-    "prompt": "请把以下对话历史压缩成简洁摘要，保留关键任务、结论与未完成事项。"
+  "summarizer": {
+    "prompt": "请把以上对话压缩成简洁摘要，保留关键任务、结论与未完成事项。"
   },
   "approver": {
     "model": "gpt-4o",

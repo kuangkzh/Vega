@@ -9,7 +9,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from core.config import build_model, resolve_prompt
-from core.context import estimate_tokens, render_prompt, summarize
+from core.context import estimate_tokens, render_prompt
 from plugins.base import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
 
@@ -201,32 +201,19 @@ class AgentSession:
                     break
                 self._execute_tool(tc)
 
-    def _call_model(self):
+    def _stream_round(self, tools: Optional[List[Dict[str, Any]]]) -> tuple:
+        """执行一次流式模型调用：逐段 emit、追加并 emit assistant 消息，返回 (content, tool_calls)。"""
         model = self.model_provider(None)
-        tools = self.runtime.visible_tools()
         content_parts: List[str] = []
         tool_calls: List[Dict[str, Any]] = []
-        if model is None:
-            msg = "[错误] 未配置可用模型"
-            self._append_assistant(msg)
-            return "", []
-        try:
-            for ev in model.chat_stream(self.messages, tools=tools):
-                if ev.kind == "text":
-                    content_parts.append(ev.text)
-                    self.emit({"type": "text", "content": ev.text})
-                elif ev.kind == "tool_calls":
-                    tool_calls = ev.tool_calls
-                elif ev.kind == "usage" and ev.usage:
-                    self._add_usage(ev.usage)
-        except Exception as exc:  # noqa: BLE001
-            if self._is_context_error(exc):
-                self._compress_and_restart()
-                self._pause_requested = True
-                return "", []
-            msg = f"[模型调用失败] {type(exc).__name__}: {exc}"
-            content_parts.append(msg)
-            self.emit({"type": "text", "content": msg})
+        for ev in model.chat_stream(self.messages, tools=tools):
+            if ev.kind == "text":
+                content_parts.append(ev.text)
+                self.emit({"type": "text", "content": ev.text})
+            elif ev.kind == "tool_calls":
+                tool_calls = ev.tool_calls
+            elif ev.kind == "usage" and ev.usage:
+                self._add_usage(ev.usage)
         content = "".join(content_parts)
         assistant_msg = {"role": "assistant", "content": content}
         if tool_calls:
@@ -235,6 +222,29 @@ class AgentSession:
         self._persist()
         self.emit({"type": "message", "message": dict(assistant_msg)})
         return content, tool_calls
+
+    def _call_model(self, tools: Optional[List[Dict[str, Any]]] = None):
+        model = self.model_provider(None)
+        if model is None:
+            msg = "[错误] 未配置可用模型"
+            self._append_assistant(msg)
+            return "", []
+        if tools is None:
+            tools = self.runtime.visible_tools()
+        try:
+            return self._stream_round(tools)
+        except Exception as exc:  # noqa: BLE001
+            if self._is_context_error(exc):
+                self._compress_and_restart()
+                self._pause_requested = True
+                return "", []
+            msg = f"[模型调用失败] {type(exc).__name__}: {exc}"
+            self.emit({"type": "text", "content": msg})
+            assistant_msg = {"role": "assistant", "content": msg}
+            self.messages.append(assistant_msg)
+            self._persist()
+            self.emit({"type": "message", "message": assistant_msg})
+            return msg, []
 
     def _execute_tool(self, tc: Dict[str, Any]) -> None:
         fn = tc.get("function") or {}
@@ -276,10 +286,22 @@ class AgentSession:
         return False
 
     def _compress_and_restart(self) -> None:
-        model = self.model_provider(None)
-        new_messages = summarize(self.messages, model, config=self.config, keep_n=4) if model else list(self.messages[-4:])
+        """上下文压缩：追加摘要 system prompt → 跑一轮无工具回复（正常流式展示）→ 重启到新会话。"""
+        prompt = self.config["summarizer"]["prompt"]
+        self.messages.append({"role": "system", "content": prompt})
+        self._persist()
+        self.emit({"type": "message", "message": {"role": "system", "content": prompt}})
+        summary = ""
+        if self.model_provider(None) is not None:
+            try:
+                summary, _ = self._stream_round(tools=[])
+            except Exception as exc:  # noqa: BLE001
+                print(f"[agent] 摘要失败: {exc}")
+        summary = (summary or "").strip()
+        if not summary:
+            summary = "\n".join(str(m.get("content") or "") for m in self.messages[-4:] if isinstance(m, dict))
         if self.manager is not None and hasattr(self.manager, "restart_after_compress"):
-            self.manager.restart_after_compress(self, new_messages)
+            self.manager.restart_after_compress(self, summary)
 
     @staticmethod
     def _is_context_error(exc: Exception) -> bool:

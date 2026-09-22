@@ -54,6 +54,10 @@
         <label class="form-label small mb-0 mt-2">审批 Prompt</label>
         <textarea v-model="config.approver.prompt" class="form-control form-control-sm" v-autosize></textarea>
       </div></div>
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">上下文压缩（Summarizer）</h6></div><div class="card-body">
+        <label class="form-label small mb-0">上下文压缩 Prompt</label>
+        <textarea v-model="config.summarizer.prompt" class="form-control form-control-sm" v-autosize></textarea>
+      </div></div>
 
       <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">飞书</h6></div><div class="card-body">
         <div class="form-check"><input type="checkbox" v-model="config.feishu.enabled" class="form-check-input" id="feishuEnabled"><label class="form-check-label small" for="feishuEnabled">启用飞书</label></div>

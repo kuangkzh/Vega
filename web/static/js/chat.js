@@ -95,6 +95,9 @@ window.CAChat = {
           if (d.message && d.message.role === 'assistant') this.streamText = '';
         }
         else if (d.type === 'usage') this.usage = d.usage;
+        else if (d.type === 'restart') {
+          this.loadSessions().then(() => this.selectSession(d.new_id));
+        }
         else if (d.type === 'status' && d.status === 'paused') {
           this.streamText = ''; this.pending = [];
           this.loadMessages(); this.loadSessions();

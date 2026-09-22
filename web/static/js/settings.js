@@ -16,6 +16,7 @@ window.CASettings = {
         system_prompt: this.config.system_prompt,
         retry: this.config.retry,
         approver: this.config.approver,
+        summarizer: this.config.summarizer,
         feishu: this.config.feishu,
         plugins,
       };
