@@ -9,7 +9,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from core.config import build_model, resolve_prompt
-from core.context import estimate_tokens, render_slots, summarize
+from core.context import estimate_tokens, render_prompt, summarize
 from plugins.base import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
 
@@ -50,7 +50,7 @@ class AgentSession:
 
     # ---------- 初始化 ----------
     def _system_content(self) -> str:
-        return render_slots(resolve_prompt(self.config.get("system_prompt"), self.cwd), self.cwd)
+        return render_prompt(resolve_prompt(self.config.get("system_prompt")), self.config, self.cwd)
 
     def _build_messages(self, messages: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         if messages:
@@ -277,7 +277,7 @@ class AgentSession:
 
     def _compress_and_restart(self) -> None:
         model = self.model_provider(None)
-        new_messages = summarize(self.messages, model, keep_n=4) if model else list(self.messages[-4:])
+        new_messages = summarize(self.messages, model, config=self.config, keep_n=4) if model else list(self.messages[-4:])
         if self.manager is not None and hasattr(self.manager, "restart_after_compress"):
             self.manager.restart_after_compress(self, new_messages)
 

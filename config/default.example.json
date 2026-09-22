@@ -14,6 +14,9 @@
   ],
   "active_model": "gpt-4o",
   "retry": 3,
+  "summarize": {
+    "prompt": "请把以下对话历史压缩成简洁摘要，保留关键任务、结论与未完成事项。"
+  },
   "approver": {
     "model": "gpt-4o",
     "prompt": "你是一名权限审批助手，请根据以下信息判断是否批准该工具调用。\n函数信息：{{plugin}}\n执行参数：{{args}}\n申请理由：{{reason}}\n只输出 JSON：{\"decision\":\"approve|reject|escalate\",\"reason\":\"...\"}"

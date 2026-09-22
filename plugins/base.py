@@ -355,7 +355,7 @@ class PluginRuntime:
         if model is None:
             return "escalate"
         system = render_approver_prompt(
-            resolve_prompt(approver.get("prompt"), self.cwd),
+            resolve_prompt(approver.get("prompt")),
             self.plugins.get(pa.plugin_name),
             pa.args,
             pa.reason,
