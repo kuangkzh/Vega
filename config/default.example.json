@@ -37,6 +37,7 @@
     "edit_file": { "permission": { "cwd": "AgentReview", "external": "AgentReview" } },
     "run_shell": {
       "permission": { "default": "HumanReview" },
+      "shell_path": "",
       "regex_list": {
         "denied": [],
         "human_review": [],

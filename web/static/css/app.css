@@ -63,6 +63,24 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .msg-user { background: var(--app-accent-tint); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 .msg-assistant { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 
+/* 消息卡片：右下角 fork 图标 */
+.msg-wrap { position: relative; }
+.msg-fork {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  background: none;
+  border: none;
+  padding: 2px;
+  line-height: 1;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s;
+  border-radius: 4px;
+}
+.msg-wrap:hover .msg-fork { opacity: 1; color: var(--app-accent); }
+
 /* 按钮全局：加粗字 + 粗边框 + 无阴影 */
 .btn { font-weight: 600; --bs-btn-border-width: 2px; }
 .btn, .btn:hover, .btn:focus, .btn:focus-visible, .btn:active { box-shadow: none; }

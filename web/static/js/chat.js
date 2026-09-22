@@ -1,5 +1,17 @@
 window.CAChat = {
+  watch: {
+    messages: { handler() { this.scrollChat(); }, deep: true },
+    streamText() { this.scrollChat(); },
+    pending: { handler() { this.scrollChat(); }, deep: true },
+    tab(v) { if (v === 'chat') this.scrollChat(); },
+  },
   methods: {
+    scrollChat() {
+      this.$nextTick(() => {
+        const el = this.$refs.chatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
     async loadSessions() {
       const r = await this.api('/api/sessions');
       const list = await r.json();

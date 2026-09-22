@@ -83,6 +83,10 @@
                 <textarea class="form-control form-control-sm" v-autosize :value="(p.value[field][k] || []).join('\n')" @input="setTextlist(p.value[field], k, $event)"></textarea>
               </div>
             </template>
+            <template v-else-if="spec.type === 'text'">
+              <label class="form-label small mb-0">[[ spec.label || field ]]</label>
+              <input v-model="p.value[field]" class="form-control form-control-sm">
+            </template>
           </div>
         </div>
       </div></div>

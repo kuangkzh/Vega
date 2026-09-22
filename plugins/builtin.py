@@ -15,7 +15,14 @@ def _abs(cwd: str, path: str) -> str:
     return path if os.path.isabs(path) else os.path.join(cwd, path)
 
 
-def _shell_argv(command: str) -> list:
+def _shell_argv(command: str, shell_path: str = "") -> list:
+    if shell_path:
+        base = os.path.basename(shell_path).lower()
+        if base in ("cmd", "cmd.exe"):
+            return [shell_path, "/c", command]
+        if base in ("powershell", "powershell.exe", "pwsh", "pwsh.exe"):
+            return [shell_path, "-Command", command]
+        return [shell_path, "-c", command]
     if os.name == "nt":
         if shutil.which("bash"):
             return ["bash", "-c", command]
@@ -106,17 +113,19 @@ def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_li
     config={
         "permission": {"type": "permission-level", "keys": ("default",)},
         "regex_list": {"type": "textlist", "keys": ("denied", "human_review", "agent_review", "trusted")},
+        "shell_path": {"type": "text", "label": "Shell 路径（留空自动探测）"},
     },
     resolve_permission=shell_permission,
 )
 def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
+    shell_path = str(ctx.config.get("shell_path") or "")
     if is_async:
         tm = ctx.runtime.task_manager
         if tm is None:
             return PluginResult({}, "后台任务管理器不可用")
 
         def target():
-            proc = subprocess.Popen(_shell_argv(command), cwd=ctx.cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+            proc = subprocess.Popen(_shell_argv(command, shell_path), cwd=ctx.cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
             tm.track_subprocess(proc)
             out, err = proc.communicate()
             return PluginResult({"stdout": out or "", "stderr": err or "", "returncode": proc.returncode}, f"异步命令返回码 {proc.returncode}")
@@ -128,7 +137,7 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
         return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
 
     try:
-        proc = subprocess.run(_shell_argv(command), cwd=ctx.cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        proc = subprocess.run(_shell_argv(command, shell_path), cwd=ctx.cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
     except subprocess.TimeoutExpired:
         return PluginResult({}, "命令执行超时（300s）")
     except Exception as exc:  # noqa: BLE001

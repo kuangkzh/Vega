@@ -23,27 +23,38 @@
       </ul>
     </div>
     <div class="col-md-9">
-      <div class="card mb-2" style="height:60vh; overflow-y:auto;">
+      <div ref="chatScroll" class="card mb-2" style="height:60vh; overflow-y:auto;">
         <div class="card-body">
-          <div v-for="(m, i) in messages" :key="i" class="mb-2">
-            <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span> <button class="btn btn-outline-secondary btn-sm ms-1 py-0" @click="forkMessage(currentSid, i)">fork</button></div>
-            <div v-else-if="m.role==='assistant'" class="d-flex gap-2 align-items-start">
-              <details v-if="m.tool_calls" class="msg-assistant flex-grow-1">
+          <div v-for="(m, i) in messages" :key="i" class="mb-2 msg-wrap">
+            <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>
+            <div v-else-if="m.role==='assistant'">
+              <details v-if="m.tool_calls" class="msg-assistant">
                 <summary>思考 / 工具调用</summary>
                 <div>[[ m.content ]]</div>
                 <small class="text-muted" v-for="tc in m.tool_calls">→ [[ tc.function.name ]]</small>
               </details>
-              <div v-else class="msg-assistant flex-grow-1"><b>助手：</b><span>[[ m.content ]]</span></div>
-              <button class="btn btn-outline-secondary btn-sm ms-1 py-0 flex-shrink-0" @click="forkMessage(currentSid, i)">fork</button>
+              <div v-else class="msg-assistant"><b>助手：</b><span>[[ m.content ]]</span></div>
             </div>
-            <div v-else-if="m.role==='tool'" class="d-flex gap-2 align-items-start">
-              <details class="msg-assistant flex-grow-1">
+            <div v-else-if="m.role==='tool'">
+              <details class="msg-assistant">
                 <summary>工具结果：[[ m.name ]]</summary>
                 <pre>[[ m.content ]]</pre>
               </details>
-              <button class="btn btn-outline-secondary btn-sm ms-1 py-0 flex-shrink-0" @click="forkMessage(currentSid, i)">fork</button>
             </div>
-            <div v-else class="msg-assistant"><b>系统：</b><span>[[ m.content ]]</span></div>
+            <div v-else class="msg-assistant">
+              <details>
+                <summary>系统</summary>
+                <pre>[[ m.content ]]</pre>
+              </details>
+            </div>
+            <button v-if="m.role==='user' || m.role==='assistant' || m.role==='tool'" type="button" class="msg-fork" title="从此消息 fork 新会话" @click="forkMessage(currentSid, i)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="8" cy="3" r="1.6"/>
+                <circle cx="4" cy="13" r="1.6"/>
+                <circle cx="12" cy="13" r="1.6"/>
+                <path d="M8 4.6 C8 8.5 4 8.5 4 11.4 M8 4.6 C8 8.5 12 8.5 12 11.4"/>
+              </svg>
+            </button>
           </div>
           <div v-for="(m, i) in pending" :key="'p'+i" class="msg-user" style="opacity:.7"><b>用户：</b><span>[[ m.content ]]</span> <span class="badge text-bg-secondary ms-1">排队中</span></div>
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><span>[[ streamText ]]</span><span class="cursor">▌</span></div>
