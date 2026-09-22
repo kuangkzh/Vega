@@ -16,9 +16,16 @@ window.CAChat = {
       const s = (t || '').replace(/\s+/g, ' ').trim() || '新会话';
       return s.length > 24 ? s.slice(0, 24) + '…' : s;
     },
+    formatTokens(n) {
+      n = Number(n) || 0;
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'm';
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+      return String(n);
+    },
     async selectSession(sid) {
-      this.currentSid = sid; this.streamText = ''; this.streamTools = [];
-      const s = this.sessions.find(x => x.id === sid); if (s) this.usage = s.token_usage;
+      this.currentSid = sid; this.streamText = ''; this.pending = [];
+      const s = this.sessions.find(x => x.id === sid);
+      if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
       await this.loadMessages(); this.openStream();
     },
     async loadMessages() {
@@ -40,7 +47,7 @@ window.CAChat = {
         this.currentSid = null;
         this.messages = [];
         this.streamText = '';
-        this.streamTools = [];
+        this.pending = [];
         this.usage = null;
         if (this.es) { this.es.close(); this.es = null; }
       }
@@ -49,9 +56,14 @@ window.CAChat = {
     async sendMessage() {
       if (!this.inputText.trim() || !this.currentSid) return;
       const text = this.inputText.trim(); this.inputText = '';
-      await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text}) });
-      this.streamText = ''; this.streamTools = [];
+      const mid = this.uid();
+      await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text, id: mid}) });
+      this.streamText = '';
       if (!this.es) this.openStream();
+    },
+    uid() {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     },
     async resumeSession() {
       if (!this.currentSid) return;
@@ -64,10 +76,15 @@ window.CAChat = {
       this.es.onmessage = (ev) => {
         const d = JSON.parse(ev.data);
         if (d.type === 'text') this.streamText += d.content;
-        else if (d.type === 'tool') this.streamTools.push(d);
+        else if (d.type === 'queued') this.pending.push({ id: d.id, content: d.content });
+        else if (d.type === 'message') {
+          if (d.id) this.pending = this.pending.filter(p => p.id !== d.id);
+          this.messages.push(d.message);
+          if (d.message && d.message.role === 'assistant') this.streamText = '';
+        }
         else if (d.type === 'usage') this.usage = d.usage;
         else if (d.type === 'status' && d.status === 'paused') {
-          this.streamText = ''; this.streamTools = [];
+          this.streamText = ''; this.pending = [];
           this.loadMessages(); this.loadSessions();
         }
       };

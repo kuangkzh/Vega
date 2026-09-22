@@ -5,9 +5,10 @@ import json
 import queue
 import threading
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
-from core.config import resolve_prompt
+from core.config import build_model, resolve_prompt
 from core.context import estimate_tokens, render_slots, summarize
 from plugins.base import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
@@ -65,11 +66,12 @@ class AgentSession:
         self._thread = threading.Thread(target=self._worker, daemon=True, name=f"agent-{self.id}")
         self._thread.start()
 
-    def send(self, text: str) -> None:
-        self.queue.put(text)
+    def send(self, text: str, mid: Optional[str] = None) -> None:
+        mid = mid or uuid.uuid4().hex
+        self.emit({"type": "queued", "id": mid, "content": text})
+        self.queue.put((mid, text))
         if not self._thread or not self._thread.is_alive():
             self.start()
-        self.emit({"type": "user_message", "content": text})
 
     def resume(self) -> None:
         if not self._thread or not self._thread.is_alive():
@@ -112,12 +114,15 @@ class AgentSession:
                 pass
 
     def to_dict(self) -> Dict[str, Any]:
+        entry = build_model(self.config)
+        max_ctx = int((entry or {}).get("max_context") or 0)
         return {
             "id": self.id,
             "title": self._title(),
             "created_at": self.created_at,
             "status": self.status,
             "token_usage": dict(self.token_usage),
+            "max_context": max_ctx,
             "message_count": len(self.messages),
         }
 
@@ -156,7 +161,8 @@ class AgentSession:
                 if item == _NUDGE:
                     self._model_loop()
                 else:
-                    self._run(str(item))
+                    mid, text = item
+                    self._run(mid, text)
             except Exception as exc:  # noqa: BLE001
                 self._append_assistant(f"[运行出错] {type(exc).__name__}: {exc}")
             while not self._stop and not self.queue.empty():
@@ -166,14 +172,16 @@ class AgentSession:
                 if nxt == _NUDGE:
                     self._model_loop()
                 else:
-                    self._run(str(nxt))
+                    mid, text = nxt
+                    self._run(mid, text)
             self.status = "paused"
             self._persist()
             self.emit({"type": "status", "status": "paused"})
 
-    def _run(self, text: str) -> None:
+    def _run(self, mid: str, text: str) -> None:
         self.messages.append({"role": "user", "content": text})
         self._persist()
+        self.emit({"type": "message", "id": mid, "message": {"role": "user", "content": text}})
         if self._maybe_compress():
             return  # 已触发压缩重启，本轮结束
         self._model_loop()
@@ -220,11 +228,12 @@ class AgentSession:
             content_parts.append(msg)
             self.emit({"type": "text", "content": msg})
         content = "".join(content_parts)
+        assistant_msg = {"role": "assistant", "content": content}
         if tool_calls:
-            self.messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
-        else:
-            self.messages.append({"role": "assistant", "content": content})
+            assistant_msg["tool_calls"] = tool_calls
+        self.messages.append(assistant_msg)
         self._persist()
+        self.emit({"type": "message", "message": dict(assistant_msg)})
         return content, tool_calls
 
     def _execute_tool(self, tc: Dict[str, Any]) -> None:
@@ -236,8 +245,9 @@ class AgentSession:
             args = {}
         res = self.runtime.execute(name, args, self.id)
         content = format_tool_content(name, res.result, res.msg)
-        self.messages.append({"role": "tool", "tool_call_id": tc.get("id", ""), "name": name, "content": content})
-        self.emit({"type": "tool", "plugin": name, "result": res.result, "msg": res.msg})
+        tool_msg = {"role": "tool", "tool_call_id": tc.get("id", ""), "name": name, "content": content}
+        self.messages.append(tool_msg)
+        self.emit({"type": "message", "message": tool_msg})
         self._persist()
         if name == "wait_for_new_instruction":
             self._pause_requested = True
@@ -250,8 +260,9 @@ class AgentSession:
         self._persist()
 
     def _append_assistant(self, text: str) -> None:
-        self.messages.append({"role": "assistant", "content": text})
-        self.emit({"type": "text", "content": text})
+        msg = {"role": "assistant", "content": text}
+        self.messages.append(msg)
+        self.emit({"type": "message", "message": msg})
         self._persist()
 
     # ---------- 上下文压缩 ----------

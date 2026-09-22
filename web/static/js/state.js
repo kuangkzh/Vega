@@ -2,8 +2,8 @@ window.CAState = {
   data() {
     return {
       loading: true, tab: 'chat',
-      sessions: [], currentSid: null, messages: [], streamText: '', streamTools: [],
-      inputText: '', usage: null, es: null,
+      sessions: [], currentSid: null, messages: [], streamText: '', pending: [],
+      inputText: '', usage: null, maxContext: 0, es: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '',
       gitCurrent: '', gitBranches: '', gitLog: '', gitStatus: '', gitErr: '',
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,
@@ -14,10 +14,13 @@ window.CAState = {
     };
   },
   computed: {
-    usagePct() {
+    tokenUsed() {
       if (!this.usage) return 0;
-      const total = this.usage.input + this.usage.output + this.usage.cache;
-      return Math.min(100, Math.round(total / 10000 * 100));
+      return (this.usage.input || 0) + (this.usage.output || 0);
+    },
+    usagePct() {
+      if (!this.usage || !this.maxContext) return 0;
+      return Math.min(100, Math.round(this.tokenUsed / this.maxContext * 100));
     },
   },
 };

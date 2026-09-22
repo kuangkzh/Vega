@@ -14,9 +14,10 @@
             </a>
             <button class="btn btn-danger btn-sm px-1 py-0 flex-shrink-0" style="line-height:1.1" title="删除" @click="deleteSession(s.id)">&times;</button>
           </div>
-          <div v-if="s.id===currentSid" class="mt-2">
-            <small class="session-meta">token：in [[ usage.input ]] / out [[ usage.output ]] / cache [[ usage.cache ]]</small>
-            <div class="progress" style="height:6px"><div class="progress-bar" :style="{width: usagePct+'%'}"></div></div>
+          <div v-if="s.id===currentSid" class="d-flex align-items-center gap-2 mt-2">
+            <small class="session-meta flex-shrink-0">[[ formatTokens(tokenUsed) ]]</small>
+            <div class="progress flex-grow-1" style="height:6px"><div class="progress-bar" :style="{width: usagePct+'%'}"></div></div>
+            <small class="session-meta flex-shrink-0">[[ formatTokens(maxContext) ]]</small>
           </div>
         </li>
       </ul>
@@ -44,8 +45,8 @@
             </div>
             <div v-else class="msg-assistant"><b>系统：</b><span>[[ m.content ]]</span></div>
           </div>
+          <div v-for="(m, i) in pending" :key="'p'+i" class="msg-user" style="opacity:.7"><b>用户：</b><span>[[ m.content ]]</span> <span class="badge text-bg-secondary ms-1">排队中</span></div>
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><span>[[ streamText ]]</span><span class="cursor">▌</span></div>
-          <div v-for="(t, i) in streamTools" :key="'t'+i" class="msg-assistant"><small class="text-muted">工具 [[ t.plugin ]] 已执行</small></div>
         </div>
       </div>
       <div class="input-group">

@@ -77,11 +77,11 @@ class SessionManager:
             sess.stop()
             self.store.delete_session(sid)
 
-    def send(self, sid: str, text: str) -> Optional[AgentSession]:
+    def send(self, sid: str, text: str, mid: Optional[str] = None) -> Optional[AgentSession]:
         sess = self.get(sid)
         if sess is None:
             return None
-        sess.send(text)
+        sess.send(text, mid)
         return sess
 
     def restart_after_compress(self, old: AgentSession, new_messages: List[Dict[str, Any]]) -> None:
@@ -120,7 +120,8 @@ class SessionManager:
             "msg": msg,
         }
         content = format_tool_content(tool_name, payload, msg)
-        sess.messages.append({"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content})
+        tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content}
+        sess.messages.append(tool_msg)
         sess._persist()
-        sess.emit({"type": "async_result", "plugin": tool_name, "task_id": task.id, "result": result, "msg": msg})
+        sess.emit({"type": "message", "message": tool_msg})
         sess.nudge()

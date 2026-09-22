@@ -99,7 +99,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         text = data.get("content") or data.get("text") or ""
         if not text:
             return jsonify({"error": "empty content"}), 400
-        s.send(text)
+        s.send(text, data.get("id"))
         return jsonify({"ok": True})
 
     @app.post("/api/sessions/<sid>/resume")
