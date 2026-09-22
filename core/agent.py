@@ -114,11 +114,18 @@ class AgentSession:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
+            "title": self._title(),
             "created_at": self.created_at,
             "status": self.status,
             "token_usage": dict(self.token_usage),
             "message_count": len(self.messages),
         }
+
+    def _title(self) -> str:
+        for m in self.messages or []:
+            if isinstance(m, dict) and m.get("role") == "user":
+                return str(m.get("content") or "").strip()
+        return ""
 
     def _persist(self) -> None:
         try:

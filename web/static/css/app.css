@@ -138,12 +138,13 @@ pre { white-space: pre-wrap; font-size: 12px; }
   --bs-list-group-active-border-color: var(--app-accent);
   --bs-list-group-active-color: #fff;
 }
-.progress-bar { background-color: var(--app-accent); }
+.progress-bar { background-color: #6c757d; }
 .text-primary { color: var(--app-accent) !important; }
 
 /* 会话列表可读性 */
 .list-group-item .session-link { color: inherit; }
 .list-group-item .session-meta { color: var(--app-text-muted); }
+.list-group-item .session-name { min-width: 0; }
 .list-group-item.active .session-link,
 .list-group-item.active .session-name { color: #fff; }
 .list-group-item.active .session-meta { color: rgba(255,255,255,.78); }
