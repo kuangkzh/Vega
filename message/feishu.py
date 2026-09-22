@@ -11,10 +11,9 @@ import lark_oapi as lark
 class FeishuSource:
     def __init__(self, config: Dict[str, Any]):
         config = config or {}
-        self.enabled = bool(config.get("enabled"))
         self.app_id = config.get("app_id") or ""
         self.app_secret = config.get("app_secret") or ""
-        self.admin = config.get("admin") or ""
+        self.admin_open_id = config.get("admin_open_id") or ""
         self._client = None
         self._ws = None
 
@@ -24,8 +23,6 @@ class FeishuSource:
         return self._client
 
     def send(self, target: str, content: str) -> None:
-        if not self.enabled:
-            raise RuntimeError("飞书未启用")
         client = self._get_client()
         body = (
             lark.im.v1.CreateMessageRequestBody.builder()
@@ -40,16 +37,16 @@ class FeishuSource:
             raise RuntimeError(f"飞书发送失败: {resp.msg}")
 
     def notify_approval(self, pa) -> None:
-        if not self.enabled or not self.admin:
+        if not self.admin_open_id:
             return
         text = (
             f"[CodeAgent 审批请求]\n插件: {pa.plugin_name}\n理由: {pa.reason}\n审批 uuid: {pa.uuid}\n"
             "请在控制台「后台任务」页面批准或拒绝。"
         )
-        self.send(self.admin, text)
+        self.send(self.admin_open_id, text)
 
     def start(self, on_message) -> None:
-        if not self.enabled or not self.app_id:
+        if not self.app_id:
             return
 
         def _on_message(data: lark.im.v1.P2ImMessageReceiveV1):
