@@ -11,19 +11,20 @@ from models.base import BaseModel, ModelResponse, StreamEvent, retry_call
 
 class OpenAIModel(BaseModel):
     def _url(self) -> str:
-        base = self.config.base_url.rstrip("/")
+        base = (self.config.get("base_url") or "").rstrip("/")
         if base.endswith("/chat/completions"):
             return base
         return f"{base}/chat/completions"
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        if self.config.api_key:
-            headers["Authorization"] = f"Bearer {self.config.api_key}"
+        api_key = self.config.get("api_key") or ""
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         return headers
 
     def _payload(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]], stream: bool) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {"model": self.config.id, "messages": messages, "stream": stream}
+        payload: Dict[str, Any] = {"model": self.config.get("id"), "messages": messages, "stream": stream}
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"

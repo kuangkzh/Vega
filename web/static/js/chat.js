@@ -13,11 +13,12 @@ window.CAChat = {
       const r = await this.api('/api/sessions/' + this.currentSid + '/messages'); this.messages = await r.json();
     },
     async newSession() {
-      const r = await this.api('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name:'session'}) });
+      const r = await this.api('/api/sessions', { method:'POST' });
       const s = await r.json(); await this.loadSessions(); this.selectSession(s.id);
     },
-    async forkSession(sid) {
-      await this.api('/api/sessions/' + sid + '/fork', { method:'POST' }); await this.loadSessions();
+    async forkMessage(sid, index) {
+      const r = await this.api('/api/sessions/' + sid + '/fork', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message_index: index }) });
+      const s = await r.json(); await this.loadSessions(); this.selectSession(s.id);
     },
     async deleteSession(sid) {
       await this.api('/api/sessions/' + sid, { method:'DELETE' }); await this.loadSessions();

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Optional
 
-from storage.schemas import ModelConfig, TokenUsage
+from storage.schemas import TokenUsage
 
 
 @dataclass
@@ -25,12 +25,12 @@ class StreamEvent:
 
 
 class BaseModel(ABC):
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: Dict[str, Any]):
         self.config = config
 
     @property
     def model_id(self) -> str:
-        return self.config.id
+        return self.config.get("id", "")
 
     @abstractmethod
     def chat(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> ModelResponse: ...

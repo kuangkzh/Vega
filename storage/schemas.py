@@ -1,4 +1,4 @@
-"""数据模型（dataclass）：模型配置、会话、后台任务、token 用量。"""
+"""数据模型（dataclass）：会话、后台任务、token 用量。"""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -28,39 +28,8 @@ class TokenUsage:
 
 
 @dataclass
-class ModelConfig:
-    id: str = ""
-    base_url: str = ""
-    api_key: str = ""
-    max_context: int = 128000
-    compress_ratio: float = 0.8
-    input_price: float = 0.0
-    output_price: float = 0.0
-    cache_price: float = 0.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ModelConfig":
-        d = d or {}
-        return cls(
-            id=str(d.get("id") or ""),
-            base_url=str(d.get("base_url") or ""),
-            api_key=str(d.get("api_key") or ""),
-            max_context=int(d.get("max_context") or 128000),
-            compress_ratio=float(d.get("compress_ratio") or 0.8),
-            input_price=float(d.get("input_price") or 0.0),
-            output_price=float(d.get("output_price") or 0.0),
-            cache_price=float(d.get("cache_price") or 0.0),
-        )
-
-
-@dataclass
 class ChatSession:
     id: str
-    name: str = "session"
-    parent_id: Optional[str] = None
     created_at: float = 0.0
     status: str = "paused"  # paused | running
     messages: List[Dict[str, Any]] = field(default_factory=list)
@@ -77,8 +46,6 @@ class ChatSession:
         d = d or {}
         return cls(
             id=str(d["id"]),
-            name=str(d.get("name") or "session"),
-            parent_id=d.get("parent_id"),
             created_at=float(d.get("created_at") or 0.0),
             status=str(d.get("status") or "paused"),
             messages=list(d.get("messages") or []),

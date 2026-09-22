@@ -1,4 +1,4 @@
-"""SQLite 持久化（会话 / 后台任务 / 模型配置）。线程安全。"""
+"""SQLite 持久化（会话 / 后台任务）。线程安全。"""
 from __future__ import annotations
 
 import json
@@ -32,8 +32,6 @@ class Store:
                     """
                     CREATE TABLE IF NOT EXISTS sessions (
                         id TEXT PRIMARY KEY,
-                        name TEXT,
-                        parent_id TEXT,
                         created_at REAL,
                         status TEXT,
                         messages TEXT,
@@ -54,8 +52,18 @@ class Store:
                     """
                 )
                 conn.commit()
+                self._migrate(conn)
             finally:
                 conn.close()
+
+    def _migrate(self, conn: sqlite3.Connection) -> None:
+        """把旧库结构升级到当前：删除废弃的 model_configs 表与 sessions 的 name/parent_id 列。"""
+        conn.execute("DROP TABLE IF EXISTS model_configs")
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+        for col in ("name", "parent_id"):
+            if col in cols:
+                conn.execute(f"ALTER TABLE sessions DROP COLUMN {col}")
+        conn.commit()
 
     # ---------- 会话 ----------
     def save_session(self, s: ChatSession) -> None:
@@ -63,9 +71,9 @@ class Store:
             conn = self._conn()
             try:
                 conn.execute(
-                    "INSERT OR REPLACE INTO sessions(id, name, parent_id, created_at, status, messages, token_usage) "
-                    "VALUES (?,?,?,?,?,?,?)",
-                    (s.id, s.name, s.parent_id, s.created_at, s.status,
+                    "INSERT OR REPLACE INTO sessions(id, created_at, status, messages, token_usage) "
+                    "VALUES (?,?,?,?,?)",
+                    (s.id, s.created_at, s.status,
                      json.dumps(s.messages, ensure_ascii=False),
                      json.dumps(s.token_usage)),
                 )
@@ -104,8 +112,6 @@ class Store:
     def _row_to_session(row: sqlite3.Row) -> ChatSession:
         return ChatSession(
             id=row["id"],
-            name=str(row["name"] or "session"),
-            parent_id=row["parent_id"],
             created_at=float(row["created_at"] or 0.0),
             status=str(row["status"] or "paused"),
             messages=json.loads(row["messages"] or "[]"),

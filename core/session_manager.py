@@ -24,29 +24,27 @@ class SessionManager:
         """启动时恢复持久化会话（默认暂停）。"""
         for s in self.store.list_sessions():
             sess = AgentSession(
-                session_id=s.id, name=s.name, cwd=self.cwd, config=self.config,
+                session_id=s.id, cwd=self.cwd, config=self.config,
                 runtime=self.runtime, store=self.store, model_provider=self.model_provider,
-                manager=self, parent_id=s.parent_id, messages=s.messages, token_usage=s.token_usage,
+                manager=self, messages=s.messages, token_usage=s.token_usage,
             )
             self.sessions[s.id] = sess
             sess.start()
         if not self.sessions:
-            self.create("default")
+            self.create()
         return self
 
     def create(
         self,
-        name: str = "session",
-        parent_id: Optional[str] = None,
         messages: Optional[List[Dict[str, Any]]] = None,
         token_usage: Optional[Dict[str, int]] = None,
         start: bool = True,
     ) -> AgentSession:
         sid = uuid.uuid4().hex
         sess = AgentSession(
-            session_id=sid, name=name, cwd=self.cwd, config=self.config,
+            session_id=sid, cwd=self.cwd, config=self.config,
             runtime=self.runtime, store=self.store, model_provider=self.model_provider,
-            manager=self, parent_id=parent_id, messages=messages, token_usage=token_usage,
+            manager=self, messages=messages, token_usage=token_usage,
         )
         with self._lock:
             self.sessions[sid] = sess
@@ -63,14 +61,14 @@ class SessionManager:
         with self._lock:
             return list(self.sessions.values())
 
-    def fork(self, sid: str) -> Optional[AgentSession]:
+    def fork(self, sid: str, message_index: Optional[int] = None) -> Optional[AgentSession]:
         sess = self.get(sid)
         if sess is None:
             return None
-        return self.create(
-            name=f"{sess.name}-fork", parent_id=sid,
-            messages=list(sess.messages), token_usage=dict(sess.token_usage),
-        )
+        messages = list(sess.messages)
+        if message_index is not None:
+            messages = messages[: max(0, message_index) + 1]
+        return self.create(messages=messages)
 
     def delete(self, sid: str) -> None:
         with self._lock:
@@ -88,7 +86,6 @@ class SessionManager:
 
     def restart_after_compress(self, old: AgentSession, new_messages: List[Dict[str, Any]]) -> None:
         new = self.create(
-            name=f"{old.name}-压缩", parent_id=old.id,
             messages=new_messages, token_usage=dict(old.token_usage),
         )
         while not old.queue.empty():

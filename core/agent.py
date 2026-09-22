@@ -20,26 +20,22 @@ class AgentSession:
     def __init__(
         self,
         session_id: str,
-        name: str,
         cwd: str,
         config: Dict[str, Any],
         runtime,
         store,
         model_provider,
         manager=None,
-        parent_id: Optional[str] = None,
         messages: Optional[List[Dict[str, Any]]] = None,
         token_usage: Optional[Dict[str, int]] = None,
     ):
         self.id = session_id
-        self.name = name
         self.cwd = cwd
         self.config = config
         self.runtime = runtime
         self.store = store
         self.model_provider = model_provider
         self.manager = manager
-        self.parent_id = parent_id
         self.created_at = time.time()
         self.status = "paused"
         self.token_usage = dict(token_usage or {"input": 0, "output": 0, "cache": 0})
@@ -118,8 +114,6 @@ class AgentSession:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
-            "name": self.name,
-            "parent_id": self.parent_id,
             "created_at": self.created_at,
             "status": self.status,
             "token_usage": dict(self.token_usage),
@@ -129,7 +123,7 @@ class AgentSession:
     def _persist(self) -> None:
         try:
             s = ChatSession(
-                id=self.id, name=self.name, parent_id=self.parent_id, created_at=self.created_at,
+                id=self.id, created_at=self.created_at,
                 status=self.status, messages=self.messages, token_usage=self.token_usage,
             )
             self.store.save_session(s)
@@ -256,8 +250,8 @@ class AgentSession:
     # ---------- 上下文压缩 ----------
     def _maybe_compress(self) -> bool:
         model = self.model_provider(None)
-        max_ctx = (model.config.max_context if model else None) or 128000
-        ratio = (model.config.compress_ratio if model else None) or 0.8
+        max_ctx = (model.config.get("max_context") if model else None) or 128000
+        ratio = (model.config.get("compress_ratio") if model else None) or 0.8
         if estimate_tokens(self.messages) >= int(max_ctx * ratio):
             self._compress_and_restart()
             return True

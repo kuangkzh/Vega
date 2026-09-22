@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 
 from flask import Flask, Response, jsonify, render_template, request
 
-from storage.schemas import ModelConfig
 from web.auth import Auth, login_required
 
 
@@ -63,14 +62,15 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @app.post("/api/sessions")
     @login_required
     def api_create_session():
-        data = request.get_json(force=True, silent=True) or {}
-        s = manager.create(name=data.get("name") or "session")
+        s = manager.create()
         return jsonify(s.to_dict())
 
     @app.post("/api/sessions/<sid>/fork")
     @login_required
     def api_fork(sid):
-        s = manager.fork(sid)
+        data = request.get_json(force=True, silent=True) or {}
+        message_index = data.get("message_index")
+        s = manager.fork(sid, message_index)
         if s is None:
             return jsonify({"error": "not found"}), 404
         return jsonify(s.to_dict())
@@ -175,43 +175,41 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @app.get("/api/models")
     @login_required
     def api_models():
-        models = [ModelConfig.from_dict(m).to_dict() for m in (config.get("models") or [])]
-        return jsonify({"models": models, "active": config.get("active_model")})
+        return jsonify({"models": config.get("models") or [], "active": config.get("active_model")})
 
     @app.post("/api/models")
     @login_required
     def api_add_model():
         data = request.get_json(force=True, silent=True) or {}
-        mc = ModelConfig.from_dict(data)
-        if not mc.id:
+        mid = data.get("id")
+        if not mid:
             return jsonify({"error": "缺少 id"}), 400
         models = config.setdefault("models", [])
         for i, m in enumerate(models):
-            if m.get("id") == mc.id:
-                models[i] = mc.to_dict()
+            if m.get("id") == mid:
+                models[i] = data
                 break
         else:
-            models.append(mc.to_dict())
+            models.append(data)
         if not config.get("active_model"):
-            config["active_model"] = mc.id
+            config["active_model"] = mid
         _persist_config()
-        return jsonify(mc.to_dict())
+        return jsonify(data)
 
     @app.put("/api/models/<mid>")
     @login_required
     def api_update_model(mid):
         data = request.get_json(force=True, silent=True) or {}
         data["id"] = mid
-        mc = ModelConfig.from_dict(data)
         models = config.setdefault("models", [])
         for i, m in enumerate(models):
             if m.get("id") == mid:
-                models[i] = mc.to_dict()
+                models[i] = data
                 break
         else:
-            models.append(mc.to_dict())
+            models.append(data)
         _persist_config()
-        return jsonify(mc.to_dict())
+        return jsonify(data)
 
     @app.delete("/api/models/<mid>")
     @login_required
