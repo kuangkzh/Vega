@@ -1,21 +1,50 @@
 <div v-if="tab==='git'" class="container-fluid mt-3">
   <div v-if="gitErr" class="alert alert-warning">⚠ Git 不可用：[[ gitErr ]]（请确认 -d 指向的目录已 git init）</div>
-  <div class="row">
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <span class="text-muted">当前分支</span>
+    <span class="badge text-bg-primary fs-6" v-if="gitCurrent">[[ gitCurrent ]]</span>
+    <button class="btn btn-sm btn-outline-secondary ms-auto" @click="loadGit">刷新</button>
+  </div>
+  <div class="row g-3">
     <div class="col-md-4">
-      <div class="card mb-2"><div class="card-body">
-        <h6>当前分支：[[ gitCurrent ]]</h6>
-        <pre>[[ gitBranches ]]</pre>
-      </div></div>
-      <div class="card"><div class="card-body">
-        <h6>工作区状态</h6>
-        <pre>[[ gitStatus ]]</pre>
-      </div></div>
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center gap-2"><span>分支</span><span class="badge text-bg-secondary">[[ gitBranchList.length ]]</span></div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush" style="max-height:36vh; overflow-y:auto;">
+            <li v-for="(b, i) in gitBranchList" :key="i" class="list-group-item d-flex align-items-center gap-2" :class="{'active': b.current}">
+              <span class="git-branch-dot" :class="{'current': b.current}"></span>
+              <span class="git-branch-name text-truncate">[[ b.name ]]</span>
+              <span v-if="b.current" class="badge text-bg-success ms-auto">当前</span>
+              <span v-else-if="b.remote" class="badge text-bg-secondary ms-auto">远程</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2"><span>工作区状态</span><span class="badge" :class="gitStatusList.length ? 'text-bg-warning' : 'text-bg-success'">[[ gitStatusList.length ]]</span></div>
+        <div class="card-body p-0">
+          <div v-if="!gitStatusList.length" class="p-3 text-muted small">✅ 工作区干净</div>
+          <ul v-else class="list-group list-group-flush" style="max-height:32vh; overflow-y:auto;">
+            <li v-for="(s, i) in gitStatusList" :key="i" class="list-group-item d-flex align-items-center gap-2">
+              <span class="badge flex-shrink-0" :class="s.cls">[[ s.label ]]</span>
+              <span class="git-status-path text-truncate" :title="s.path">[[ s.path ]]</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
     <div class="col-md-8">
-      <div class="card"><div class="card-body">
-        <h6>提交历史</h6>
-        <pre>[[ gitLog ]]</pre>
-      </div></div>
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2"><span>提交历史</span><span class="badge text-bg-secondary">[[ gitLogList.length ]]</span></div>
+        <div class="card-body p-0">
+          <div class="git-log" style="max-height:75vh; overflow-y:auto;">
+            <div v-for="(l, i) in gitLogList" :key="i" class="git-log-line">
+              <span class="git-graph">[[ l.graph ]]</span><span v-if="l.hash" class="git-hash">[[ l.hash ]]</span><span v-if="l.subject" class="git-msg">[[ l.subject ]]</span><span v-for="(d, j) in l.decorations" :key="j" class="badge text-bg-secondary git-deco">[[ d ]]</span>
+            </div>
+            <div v-if="!gitLogList.length" class="p-3 text-muted small">暂无提交记录</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

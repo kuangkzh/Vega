@@ -10,6 +10,7 @@
     <input v-model="taskNameFilter" class="form-control w-auto" placeholder="按任务名筛选" @keyup.enter="loadTasks">
     <button class="btn btn-outline-secondary ms-2" @click="loadTasks">刷新</button>
   </div>
+  <div class="table-responsive">
   <table class="table table-sm table-bordered">
     <thead><tr><th>任务名</th><th>执行时间</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>
@@ -25,4 +26,5 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </div>

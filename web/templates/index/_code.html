@@ -1,6 +1,12 @@
 <div v-if="tab==='code'" class="container-fluid mt-3">
+  <div class="d-md-none mb-2">
+    <select class="form-select" @change="onMobileBrowse($event.target.value)">
+      <option value="__up__">⬆ 上级目录</option>
+      <option v-for="(e, i) in browseEntries" :key="i" :value="e.name">[[ e.is_dir ? '📁 ' : '📄 ' ]][[ e.name ]]</option>
+    </select>
+  </div>
   <div class="row">
-    <div class="col-md-3">
+    <div class="col-md-3 d-none d-md-block">
       <div class="card"><div class="card-body">
         <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
         <ul class="list-group list-group-flush" style="max-height:70vh; overflow-y:auto;">
@@ -14,11 +20,11 @@
     </div>
     <div class="col-md-9">
       <div class="card"><div class="card-body">
-        <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">[[ currentFilePath || '选择文件' ]]</span>
-          <button class="btn btn-sm btn-primary" @click="saveFile" v-if="currentFilePath">保存</button>
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <span class="text-muted text-truncate">[[ currentFilePath || '选择文件' ]] <span v-if="langLabel()" class="badge text-bg-light border ms-1">[[ langLabel() ]]</span></span>
+          <button class="btn btn-sm btn-primary flex-shrink-0" @click="saveFile" v-if="currentFilePath">保存</button>
         </div>
-        <textarea v-model="fileContent" class="form-control" style="height:70vh; font-family:monospace;"></textarea>
+        <textarea ref="codeEditor" v-model="fileContent" class="form-control code-editor" placeholder="选择文件查看 / 编辑"></textarea>
       </div></div>
     </div>
   </div>

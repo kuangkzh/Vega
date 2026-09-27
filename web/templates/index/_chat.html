@@ -1,8 +1,18 @@
-<div v-if="tab==='chat'" class="container-fluid mt-3">
-  <div class="row">
-    <div class="col-md-3">
+<div v-if="tab==='chat'" class="container-fluid chat-page">
+<div class="row d-md-none mb-2 g-2 align-items-center">
+    <div class="col">
+      <select class="form-select" :value="currentSid" @change="selectSession($event.target.value)">
+        <option disabled value="">选择会话</option>
+        <option v-for="s in sessions" :key="s.id" :value="s.id">[[ shortTitle(s.title) ]]</option>
+      </select>
+    </div>
+    <div class="col-auto"><button class="btn btn-primary" @click="newSession">＋新建</button></div>
+    <div class="col-auto"><button class="btn btn-outline-danger" :disabled="!currentSid" @click="deleteSession(currentSid)">删除</button></div>
+  </div>
+  <div class="chat-grid">
+    <div class="chat-sidebar d-none d-md-flex">
       <button class="btn btn-sm btn-primary w-100 mb-2" @click="newSession">新建会话</button>
-      <ul class="list-group" style="max-height:70vh; overflow-y:auto;">
+      <ul class="list-group chat-session-list">
         <li v-for="s in sessions" :key="s.id" class="list-group-item session-item" :class="{active: s.id===currentSid}">
           <div class="d-flex gap-2 align-items-start">
             <a href="#" class="flex-grow-1 text-decoration-none session-link" @click.prevent="selectSession(s.id)">
@@ -28,8 +38,8 @@
         </li>
       </ul>
     </div>
-    <div class="col-md-9">
-      <div ref="chatScroll" class="card mb-2" style="height:60vh; overflow-y:auto;">
+    <div class="chat-main">
+      <div ref="chatScroll" class="card mb-2 chat-scroll">
         <div class="card-body">
           <div v-for="(m, i) in messages" :key="i" class="mb-2 msg-wrap">
             <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>

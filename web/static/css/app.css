@@ -161,9 +161,75 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .text-primary { color: var(--app-accent) !important; }
 
 /* 会话列表可读性 */
-.list-group-item .session-link { color: inherit; }
+.list-group-item .session-link { color: inherit; min-width: 0; }
 .list-group-item .session-meta { color: var(--app-text-muted); }
 .list-group-item .session-name { min-width: 0; }
 .list-group-item.active .session-link,
 .list-group-item.active .session-name { color: var(--app-text); }
 .list-group-item.active .session-meta { color: var(--app-text-muted); }
+
+/* ===== CodeMirror 编辑器（贴合暖灰白主题）===== */
+.CodeMirror {
+  height: auto;
+  min-height: 40vh;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+.CodeMirror-gutters { background: var(--app-surface-2); border-right: 1px solid var(--app-border); }
+.CodeMirror-linenumber { color: var(--app-text-muted); }
+.CodeMirror-selected { background: var(--app-accent-tint) !important; }
+.CodeMirror-focused .CodeMirror-selected { background: var(--app-accent-tint) !important; }
+.cm-s-default .cm-keyword { color: #7a5aa8; }
+.cm-s-default .cm-string { color: #a66a2e; }
+.cm-s-default .cm-comment { color: #9a9184; font-style: italic; }
+
+/* ===== Git 页 ===== */
+.git-log {
+  background: var(--app-surface);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+.git-log-line { padding: 1px 12px; }
+.git-graph { color: var(--app-text-muted); white-space: pre; }
+.git-hash { color: var(--app-accent); }
+.git-msg { color: var(--app-text); margin-left: 4px; }
+.git-deco { margin-left: 6px; font-size: 10px; }
+.git-branch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--app-text-muted); flex-shrink: 0; }
+.git-branch-dot.current { background: var(--app-accent); }
+.git-branch-name { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 13px; min-width: 0; }
+.git-status-path { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 12.5px; min-width: 0; }
+
+/* ===== 移动端控制条 ===== */
+@media (max-width: 767.98px) {
+  .navbar-brand { font-size: 1rem; }
+}
+/* ===== 应用外壳：顶栏固定 + 内容区滚动 ===== */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.app-shell > .navbar { flex: 0 0 auto; }
+.app-content { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.app-content > .container-fluid:not(.chat-page) { flex: 0 0 auto; }
+
+/* ===== 聊天页：占满内容区，发送框贴底 ===== */
+.chat-page {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.75rem;
+}
+.chat-grid { flex: 1 1 0; min-height: 0; display: flex; gap: 0.75rem; }
+.chat-sidebar { width: 25%; min-width: 0; display: flex; flex-direction: column; }
+.chat-session-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.chat-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.chat-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; }

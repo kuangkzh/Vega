@@ -6,6 +6,7 @@ window.CAState = {
       inputText: '', usage: null, maxContext: 0, es: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '',
       gitCurrent: '', gitBranches: '', gitLog: '', gitStatus: '', gitErr: '',
+      gitBranchList: [], gitStatusList: [], gitLogList: [],
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,
       config: null, models: [], activeModel: null,
       showModelForm: false, modelEdit: null,
