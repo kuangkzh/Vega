@@ -71,6 +71,10 @@ window.CAChat = {
       }
       await this.loadSessions();
     },
+    async toggleFeishu(sid) {
+      await this.api('/api/sessions/' + sid + '/feishu/toggle', { method:'POST' });
+      await this.loadSessions();
+    },
     async sendMessage() {
       if (!this.inputText.trim() || !this.currentSid) return;
       const text = this.inputText.trim(); this.inputText = '';

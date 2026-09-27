@@ -24,7 +24,7 @@
   "feishu": {
     "app_id": "",
     "app_secret": "",
-    "admin_open_id": ""
+    "chat_id": ""
   },
   "web": {
     "host": "127.0.0.1",

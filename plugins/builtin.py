@@ -256,7 +256,7 @@ def request_approval(ctx, uuid: str, task_name: str = "", reason: str = ""):
 
 
 @register_plugin(
-    description="向配置的飞书 admin_open_id 发送一条消息",
+    description="向配置的飞书 chat_id 发送一条消息",
     parameters={
         "type": "object",
         "properties": {
@@ -267,14 +267,14 @@ def request_approval(ctx, uuid: str, task_name: str = "", reason: str = ""):
 )
 def send_feishu(ctx, content: str):
     feishu = (ctx.runtime.config or {}).get("feishu") or {}
-    target = feishu.get("admin_open_id") or ""
+    target = feishu.get("chat_id") or ""
     if not target:
-        return PluginResult({}, "未配置飞书 admin_open_id，无法发送")
+        return PluginResult({}, "未配置飞书 chat_id，无法发送")
     ms = ctx.runtime.message_source
     if ms is None:
         return PluginResult({}, "消息源未启用")
     try:
         ms.send(str(target), str(content or ""))
-        return PluginResult({"sent": True, "admin_open_id": target}, "已发送")
+        return PluginResult({"sent": True, "chat_id": target}, "已发送")
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"发送失败: {exc}")

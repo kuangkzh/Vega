@@ -57,7 +57,8 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @app.get("/api/sessions")
     @login_required
     def api_sessions():
-        return jsonify([s.to_dict() for s in manager.list()])
+        bound = manager.get_feishu_session_id()
+        return jsonify([{**s.to_dict(), "feishu": s.id == bound} for s in manager.list()])
 
     @app.post("/api/sessions")
     @login_required
@@ -119,6 +120,14 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
             return jsonify({"error": "not found"}), 404
         s.pause()
         return jsonify({"ok": True})
+
+    @app.post("/api/sessions/<sid>/feishu/toggle")
+    @login_required
+    def api_feishu_toggle(sid):
+        if manager.get(sid) is None:
+            return jsonify({"error": "not found"}), 404
+        bound = manager.toggle_feishu(sid)
+        return jsonify({"feishu": bound, "feishu_session_id": manager.get_feishu_session_id()})
 
     @app.get("/api/sessions/<sid>/stream")
     def api_stream(sid):

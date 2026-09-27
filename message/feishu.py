@@ -13,7 +13,7 @@ class FeishuSource:
         config = config or {}
         self.app_id = config.get("app_id") or ""
         self.app_secret = config.get("app_secret") or ""
-        self.admin_open_id = config.get("admin_open_id") or ""
+        self.chat_id = config.get("chat_id") or ""
         self._client = None
         self._ws = None
 
@@ -31,19 +31,19 @@ class FeishuSource:
             .content(json.dumps({"text": content}, ensure_ascii=False))
             .build()
         )
-        request = lark.im.v1.CreateMessageRequest.builder().receive_id_type("open_id").request_body(body).build()
+        request = lark.im.v1.CreateMessageRequest.builder().receive_id_type("chat_id").request_body(body).build()
         resp = client.im.v1.message.create(request)
         if not resp.success():
             raise RuntimeError(f"飞书发送失败: {resp.msg}")
 
     def notify_approval(self, pa) -> None:
-        if not self.admin_open_id:
+        if not self.chat_id:
             return
         text = (
             f"[CodeAgent 审批请求]\n插件: {pa.plugin_name}\n理由: {pa.reason}\n审批 uuid: {pa.uuid}\n"
             "请在控制台「后台任务」页面批准或拒绝。"
         )
-        self.send(self.admin_open_id, text)
+        self.send(self.chat_id, text)
 
     def start(self, on_message) -> None:
         if not self.app_id:

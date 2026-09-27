@@ -48,8 +48,7 @@ def main() -> None:
     manager = SessionManager(store, runtime, config, cwd, model_provider).load()
     task_manager.on_done = manager.on_task_done
 
-    primary = manager.list()[0] if manager.list() else manager.create()
-    feishu.start(lambda text, _sender_id: primary.send(text))
+    feishu.start(lambda text, _sender_id: manager.feishu_recv(text))
 
     app = create_app(config, store, manager, runtime, task_manager, cwd, feishu=feishu, config_path=config_path)
     web = config.get("web") or {}

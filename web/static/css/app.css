@@ -153,9 +153,9 @@ pre { white-space: pre-wrap; font-size: 12px; }
 
 /* 选中态 / 进度条 / text-primary */
 .list-group-item.active {
-  --bs-list-group-active-bg: var(--app-accent);
+  --bs-list-group-active-bg: var(--app-accent-tint);
   --bs-list-group-active-border-color: var(--app-accent);
-  --bs-list-group-active-color: #fff;
+  --bs-list-group-active-color: var(--app-text);
 }
 .progress-bar { background-color: #6c757d; }
 .text-primary { color: var(--app-accent) !important; }
@@ -165,17 +165,5 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .list-group-item .session-meta { color: var(--app-text-muted); }
 .list-group-item .session-name { min-width: 0; }
 .list-group-item.active .session-link,
-.list-group-item.active .session-name { color: #fff; }
-.list-group-item.active .session-meta { color: rgba(255,255,255,.78); }
-
-/* 激活会话项：fork 转浅色描边 */
-.list-group-item.active .btn-outline-secondary {
-  --bs-btn-color: rgba(255,255,255,.92);
-  --bs-btn-border-color: rgba(255,255,255,.6);
-  --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: rgba(255,255,255,.18);
-  --bs-btn-hover-border-color: #fff;
-  --bs-btn-active-color: #fff;
-  --bs-btn-active-bg: rgba(255,255,255,.22);
-  --bs-btn-active-border-color: #fff;
-}
+.list-group-item.active .session-name { color: var(--app-text); }
+.list-group-item.active .session-meta { color: var(--app-text-muted); }

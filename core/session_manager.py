@@ -18,6 +18,7 @@ class SessionManager:
         self.cwd = cwd
         self.model_provider = model_provider
         self.sessions: Dict[str, AgentSession] = {}
+        self._feishu_session_id: Optional[str] = None
         self._lock = threading.RLock()
 
     def load(self) -> "SessionManager":
@@ -73,6 +74,8 @@ class SessionManager:
     def delete(self, sid: str) -> None:
         with self._lock:
             sess = self.sessions.pop(sid, None)
+            if self._feishu_session_id == sid:
+                self._feishu_session_id = None
         if sess is not None:
             sess.stop()
             self.store.delete_session(sid)
@@ -104,6 +107,32 @@ class SessionManager:
             sessions = list(self.sessions.values())
         for s in sessions:
             s.stop()
+
+    # ---------- 飞书监听会话绑定（同一时间仅一个会话监听） ----------
+    def get_feishu_session_id(self) -> Optional[str]:
+        with self._lock:
+            return self._feishu_session_id
+
+    def toggle_feishu(self, sid: str) -> bool:
+        """切换飞书监听：绑定 sid；若已绑定则该次取消。返回切换后是否处于绑定状态。"""
+        with self._lock:
+            if sid not in self.sessions:
+                return False
+            if self._feishu_session_id == sid:
+                self._feishu_session_id = None
+                return False
+            self._feishu_session_id = sid
+            return True
+
+    def feishu_recv(self, text: str) -> None:
+        """飞书入站消息：投递到当前绑定会话，末尾标注来源。未绑定则丢弃。"""
+        sid = self.get_feishu_session_id()
+        if not sid:
+            return
+        sess = self.get(sid)
+        if sess is None:
+            return
+        sess.send(f"{text}（本消息来自飞书）")
 
     # 异步任务完成回调（task_manager.on_done）
     def on_task_done(self, session_id: Optional[str], tool_name: str, task) -> None:
