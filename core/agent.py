@@ -29,6 +29,7 @@ class AgentSession:
         manager=None,
         messages: Optional[List[Dict[str, Any]]] = None,
         token_usage: Optional[Dict[str, int]] = None,
+        updated_at: Optional[float] = None,
     ):
         self.id = session_id
         self.cwd = cwd
@@ -38,6 +39,7 @@ class AgentSession:
         self.model_provider = model_provider
         self.manager = manager
         self.created_at = time.time()
+        self.updated_at = updated_at if updated_at is not None else self.created_at
         self.status = "paused"
         self.token_usage = dict(token_usage or {"input": 0, "output": 0, "cache": 0})
         self.messages = self._build_messages(messages)
@@ -120,6 +122,7 @@ class AgentSession:
             "id": self.id,
             "title": self._title(),
             "created_at": self.created_at,
+            "updated_at": self.updated_at,
             "status": self.status,
             "token_usage": dict(self.token_usage),
             "max_context": max_ctx,
@@ -133,9 +136,10 @@ class AgentSession:
         return ""
 
     def _persist(self) -> None:
+        self.updated_at = time.time()
         try:
             s = ChatSession(
-                id=self.id, created_at=self.created_at,
+                id=self.id, created_at=self.created_at, updated_at=self.updated_at,
                 status=self.status, messages=self.messages, token_usage=self.token_usage,
             )
             self.store.save_session(s)

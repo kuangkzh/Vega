@@ -33,6 +33,7 @@ class Store:
                     CREATE TABLE IF NOT EXISTS sessions (
                         id TEXT PRIMARY KEY,
                         created_at REAL,
+                        updated_at REAL,
                         status TEXT,
                         messages TEXT,
                         token_usage TEXT
@@ -52,18 +53,8 @@ class Store:
                     """
                 )
                 conn.commit()
-                self._migrate(conn)
             finally:
                 conn.close()
-
-    def _migrate(self, conn: sqlite3.Connection) -> None:
-        """把旧库结构升级到当前：删除废弃的 model_configs 表与 sessions 的 name/parent_id 列。"""
-        conn.execute("DROP TABLE IF EXISTS model_configs")
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()}
-        for col in ("name", "parent_id"):
-            if col in cols:
-                conn.execute(f"ALTER TABLE sessions DROP COLUMN {col}")
-        conn.commit()
 
     # ---------- 会话 ----------
     def save_session(self, s: ChatSession) -> None:
@@ -71,9 +62,9 @@ class Store:
             conn = self._conn()
             try:
                 conn.execute(
-                    "INSERT OR REPLACE INTO sessions(id, created_at, status, messages, token_usage) "
-                    "VALUES (?,?,?,?,?)",
-                    (s.id, s.created_at, s.status,
+                    "INSERT OR REPLACE INTO sessions(id, created_at, updated_at, status, messages, token_usage) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (s.id, s.created_at, s.updated_at, s.status,
                      json.dumps(s.messages, ensure_ascii=False),
                      json.dumps(s.token_usage)),
                 )
@@ -94,7 +85,7 @@ class Store:
         with self._lock:
             conn = self._conn()
             try:
-                rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+                rows = conn.execute("SELECT * FROM sessions ORDER BY updated_at DESC").fetchall()
                 return [self._row_to_session(r) for r in rows]
             finally:
                 conn.close()
@@ -122,6 +113,7 @@ class Store:
         return ChatSession(
             id=row["id"],
             created_at=float(row["created_at"] or 0.0),
+            updated_at=float(row["updated_at"] or 0.0),
             status=str(row["status"] or "paused"),
             messages=json.loads(row["messages"] or "[]"),
             token_usage=json.loads(row["token_usage"] or "{}"),

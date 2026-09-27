@@ -27,7 +27,7 @@ class SessionManager:
             sess = AgentSession(
                 session_id=s.id, cwd=self.cwd, config=self.config,
                 runtime=self.runtime, store=self.store, model_provider=self.model_provider,
-                manager=self, messages=s.messages, token_usage=s.token_usage,
+                manager=self, messages=s.messages, token_usage=s.token_usage, updated_at=s.updated_at,
             )
             self.sessions[s.id] = sess
             sess.start()

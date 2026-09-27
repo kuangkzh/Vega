@@ -31,6 +31,7 @@ class TokenUsage:
 class ChatSession:
     id: str
     created_at: float = 0.0
+    updated_at: float = 0.0
     status: str = "paused"  # paused | running
     messages: List[Dict[str, Any]] = field(default_factory=list)
     token_usage: Dict[str, int] = field(default_factory=lambda: {"input": 0, "output": 0, "cache": 0})
@@ -47,6 +48,7 @@ class ChatSession:
         return cls(
             id=str(d["id"]),
             created_at=float(d.get("created_at") or 0.0),
+            updated_at=float(d.get("updated_at") or 0.0),
             status=str(d.get("status") or "paused"),
             messages=list(d.get("messages") or []),
             token_usage=dict(d.get("token_usage") or {"input": 0, "output": 0, "cache": 0}),

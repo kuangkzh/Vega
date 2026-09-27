@@ -16,7 +16,7 @@ window.CAChat = {
     async loadSessions() {
       const r = await this.api('/api/sessions');
       const list = await r.json();
-      list.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+      list.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
       this.sessions = list;
     },
     formatTime(ts) {
