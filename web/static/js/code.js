@@ -9,6 +9,11 @@ window.CACode = {
       }
     },
   },
+  computed: {
+    currentBrowsePath() {
+      return '文件浏览 · ' + (this.browsePath === '.' ? '根目录' : this.browsePath);
+    },
+  },
   methods: {
     browse(path) {
       if (path === '..') {
@@ -20,13 +25,6 @@ window.CACode = {
     },
     browseJoin(name) { this.browse(this.browsePath === '.' ? name : this.browsePath + '/' + name); },
     browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
-    onMobileBrowse(name) {
-      if (name === '__up__') return this.browse('..');
-      const e = this.browseEntries.find(x => x.name === name);
-      if (!e) return;
-      if (e.is_dir) this.browseJoin(name);
-      else this.openFile(this.browseJoinPath(name));
-    },
     async fetchBrowse(path) {
       const r = await this.api('/api/browse?path=' + encodeURIComponent(path || '.'));
       const d = await r.json();
@@ -37,6 +35,7 @@ window.CACode = {
       const d = await r.json();
       if (d.content !== undefined) {
         this.currentFilePath = path;
+        this.codeBrowseOpen = false;
         this.fileContent = d.content;
         this.$nextTick(() => this.initEditor());
       }

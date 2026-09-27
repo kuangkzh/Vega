@@ -6,6 +6,13 @@ window.CAChat = {
     pending: { handler() { this.scrollChat(); }, deep: true },
     tab(v) { if (v === 'chat') this.scrollChat(); },
   },
+  computed: {
+    currentSessionTitle() {
+      if (!this.currentSid) return '会话列表';
+      const s = this.sessions.find(x => x.id === this.currentSid);
+      return s ? '会话：' + this.shortTitle(s.title) : '会话列表';
+    },
+  },
   methods: {
     scrollChat() {
       this.$nextTick(() => {
@@ -40,6 +47,7 @@ window.CAChat = {
       return String(n);
     },
     async selectSession(sid) {
+      this.sessionsOpen = false;
       this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
       const s = this.sessions.find(x => x.id === sid);
       if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }

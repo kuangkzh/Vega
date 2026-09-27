@@ -1,16 +1,9 @@
 <div v-if="tab==='chat'" class="container-fluid chat-page">
-<div class="row d-md-none mb-2 g-2 align-items-center">
-    <div class="col">
-      <select class="form-select" :value="currentSid" @change="selectSession($event.target.value)">
-        <option disabled value="">选择会话</option>
-        <option v-for="s in sessions" :key="s.id" :value="s.id">[[ shortTitle(s.title) ]]</option>
-      </select>
-    </div>
-    <div class="col-auto"><button class="btn btn-primary" @click="newSession">＋新建</button></div>
-    <div class="col-auto"><button class="btn btn-outline-danger" :disabled="!currentSid" @click="deleteSession(currentSid)">删除</button></div>
-  </div>
+  <button type="button" class="btn btn-sm btn-outline-secondary d-md-none mb-2 chat-session-toggle" @click="sessionsOpen = !sessionsOpen">
+    [[ currentSessionTitle ]]<span class="ms-1">[[ sessionsOpen ? '▲' : '▼' ]]</span>
+  </button>
   <div class="chat-grid">
-    <div class="chat-sidebar d-none d-md-flex">
+    <div class="chat-sidebar d-md-flex" :class="{ 'is-open': sessionsOpen }">
       <button class="btn btn-sm btn-primary w-100 mb-2" @click="newSession">新建会话</button>
       <ul class="list-group chat-session-list">
         <li v-for="s in sessions" :key="s.id" class="list-group-item session-item" :class="{active: s.id===currentSid}">

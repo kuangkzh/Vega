@@ -3,9 +3,9 @@ window.CAState = {
     return {
       loading: true, tab: 'chat',
       sessions: [], currentSid: null, messages: [], streamText: '', streamReasoning: '', pending: [],
-      inputText: '', usage: null, maxContext: 0, es: null,
-      browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '',
-      gitCurrent: '', gitBranches: '', gitLog: '', gitStatus: '', gitErr: '',
+      inputText: '', usage: null, maxContext: 0, es: null, sessionsOpen: false,
+      browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false,
+      gitCurrent: '', gitErr: '',
       gitBranchList: [], gitStatusList: [], gitLogList: [],
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,
       config: null, models: [], activeModel: null,

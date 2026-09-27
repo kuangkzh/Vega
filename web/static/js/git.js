@@ -2,13 +2,12 @@ window.CAGit = {
   methods: {
     async loadGit() {
       const bb = await (await this.api('/api/git/branches')).json();
-      this.gitCurrent = bb.current; this.gitBranches = bb.branches;
+      this.gitCurrent = bb.current;
       this.gitBranchList = this.parseBranches(bb.branches || '');
       const lg = await (await this.api('/api/git/log')).json();
-      this.gitLog = lg.out || ''; this.gitErr = lg.err || '';
+      this.gitErr = lg.err || '';
       this.gitLogList = this.parseLog(lg.out || '');
       const s = await (await this.api('/api/git/status')).json();
-      this.gitStatus = s.out || '';
       this.gitStatusList = this.parseStatus(s.out || '');
     },
     parseBranches(text) {
