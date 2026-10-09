@@ -1,6 +1,7 @@
 """Flask 控制台：JSON API + SSE + 页面渲染。"""
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import queue
@@ -22,8 +23,31 @@ def _safe_path(cwd: str, path: str) -> str:
     return full
 
 
+_GZIP_MIN_SIZE = 1024
+
+
 def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, config_path=None):
     app = Flask(__name__)
+
+    @app.after_request
+    def _gzip_response(response):
+        # 大响应体（如会话历史）启用 gzip；SSE 流与已编码响应跳过
+        if response.direct_passthrough or response.mimetype == "text/event-stream":
+            return response
+        if "gzip" not in (request.headers.get("Accept-Encoding") or "").lower():
+            return response
+        if response.headers.get("Content-Encoding") or response.status_code in (204, 304):
+            return response
+        data = response.get_data()
+        if len(data) < _GZIP_MIN_SIZE:
+            return response
+        compressed = gzip.compress(data)
+        response.set_data(compressed)
+        response.headers["Content-Encoding"] = "gzip"
+        response.headers["Content-Length"] = str(len(compressed))
+        response.headers.add("Vary", "Accept-Encoding")
+        return response
+
     auth = Auth((config.get("web") or {}).get("token"))
     auth.init_app(app)
 
