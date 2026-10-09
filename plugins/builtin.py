@@ -37,7 +37,9 @@ def _is_inside(cwd, path):
     if not cwd:
         return True
     try:
-        return os.path.commonpath([os.path.abspath(cwd), os.path.abspath(path)]) == os.path.abspath(cwd)
+        base = os.path.abspath(cwd)
+        target = os.path.abspath(_abs(cwd, path))
+        return os.path.commonpath([base, target]) == base
     except Exception:  # noqa: BLE001
         return False
 
