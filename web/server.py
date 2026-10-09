@@ -23,7 +23,7 @@ def _safe_path(cwd: str, path: str) -> str:
     return full
 
 
-_GZIP_MIN_SIZE = 1024
+_GZIP_MIN_SIZE = 10 * 1024
 
 
 def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, config_path=None):
