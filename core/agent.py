@@ -276,9 +276,11 @@ class AgentSession:
             self._pause_requested = True
 
     def _add_usage(self, usage: TokenUsage) -> None:
-        self.token_usage["input"] += usage.input
-        self.token_usage["output"] += usage.output
-        self.token_usage["cache"] += usage.cache
+        # 记录最近一次调用的用量：input 即当前完整上下文规模，供前端进度条展示；
+        # 不可累加，否则会随工具调用轮次成倍膨胀，远超真实上下文占用。
+        self.token_usage["input"] = usage.input
+        self.token_usage["output"] = usage.output
+        self.token_usage["cache"] = usage.cache
         self.emit({"type": "usage", "usage": dict(self.token_usage)})
         self._persist()
 

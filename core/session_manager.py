@@ -91,7 +91,6 @@ class SessionManager:
     def restart_after_compress(self, old: AgentSession, summary: str) -> None:
         new = self.create(
             messages=[{"role": "system", "content": f"[对话历史摘要]\n{summary}"}],
-            token_usage=dict(old.token_usage),
         )
         old.emit({"type": "restart", "old_id": old.id, "new_id": new.id})
         while not old.queue.empty():
