@@ -281,14 +281,20 @@ pre { white-space: pre-wrap; font-size: 12px; }
 }
 
 /* ===== Markdown 渲染（文件预览 / 聊天消息共用）===== */
-.md-body { line-height: 1.7; word-break: break-word; }
+.md-body { font-size: 0.875rem; line-height: 1.6; word-break: break-word; }
 .md-body > :first-child { margin-top: 0; }
 .md-body > :last-child { margin-bottom: 0; }
-.md-body h1, .md-body h2, .md-body h3, .md-body h4 { margin: 1.2em 0 0.6em; font-weight: 600; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4, .md-body h5, .md-body h6 { margin: 1.2em 0 0.6em; font-weight: 600; }
+.md-body h1 { font-size: 1.4em; }
+.md-body h2 { font-size: 1.25em; }
+.md-body h3 { font-size: 1.1em; }
+.md-body h4 { font-size: 1em; }
+.md-body h5 { font-size: 0.95em; }
+.md-body h6 { font-size: 0.9em; }
 .md-body h1, .md-body h2 { border-bottom: 1px solid var(--app-border); padding-bottom: 0.3em; }
 .md-body code {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 13px;
+  font-size: 0.9em;
   background: var(--app-surface-2);
   padding: 1px 5px;
   border-radius: 4px;
@@ -300,8 +306,9 @@ pre { white-space: pre-wrap; font-size: 12px; }
   padding: 10px 12px;
   overflow-x: auto;
   white-space: pre;
+  font-size: 0.9em;
 }
-.md-body pre code { background: none; padding: 0; }
+.md-body pre code { background: none; padding: 0; font-size: inherit; }
 .md-body blockquote {
   border-left: 3px solid var(--app-border);
   color: var(--app-text-muted);
