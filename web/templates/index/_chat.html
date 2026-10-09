@@ -48,7 +48,7 @@
                   <pre>[[ formatArgs(tc.function.arguments) ]]</pre>
                 </div>
               </details>
-              <div v-if="m.content" class="msg-assistant"><b>助手：</b><span>[[ m.content ]]</span></div>
+              <div v-if="m.content" class="msg-assistant"><b>助手：</b><div class="md-body" v-html="renderMarkdown(m.content)"></div></div>
             </div>
             <div v-else-if="m.role==='tool'">
               <details class="msg-assistant">
@@ -77,7 +77,7 @@
             <summary>思考过程（实时）</summary>
             <pre class="msg-reasoning">[[ streamReasoning ]]</pre>
           </details>
-          <div v-if="streamText" class="msg-assistant"><b>助手：</b><span>[[ streamText ]]</span><span class="cursor">▌</span></div>
+          <div v-if="streamText" class="msg-assistant"><b>助手：</b><div class="md-body" v-html="renderMarkdown(streamText + '▌')"></div></div>
         </div>
       </div>
       <div class="input-group">
