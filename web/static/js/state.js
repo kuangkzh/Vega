@@ -4,7 +4,7 @@ window.CAState = {
       loading: true, tab: 'chat',
       sessions: [], currentSid: null, messages: [], streamText: '', streamReasoning: '', pending: [],
       inputText: '', usage: null, maxContext: 0, es: null, sessionsOpen: false,
-      browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false,
+      browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false, mdPreview: false,
       gitCurrent: '', gitErr: '',
       gitBranchList: [], gitStatusList: [], gitLogList: [],
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,

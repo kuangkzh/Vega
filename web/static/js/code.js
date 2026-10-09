@@ -1,3 +1,12 @@
+// marked 4.x 的 html:false 不生效，这里覆盖 html 渲染器：markdown 内的原始 HTML 一律按纯文本输出
+if (typeof window.marked !== 'undefined') {
+  window.marked.use({
+    renderer: {
+      html: (html) => String(html).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+    },
+  });
+}
+
 window.CACode = {
   watch: {
     tab(v) {
@@ -13,8 +22,14 @@ window.CACode = {
     currentBrowsePath() {
       return '文件浏览 · ' + (this.browsePath === '.' ? '根目录' : this.browsePath);
     },
+    isMarkdownFile() {
+      return ['md', 'markdown'].includes(this.extOf(this.currentFilePath));
+    },
   },
   methods: {
+    extOf(path) {
+      return ((path || '').split('.').pop() || '').toLowerCase();
+    },
     browse(path) {
       if (path === '..') {
         this.browsePath = this.browsePath.includes('/') ? (this.browsePath.slice(0, this.browsePath.lastIndexOf('/')) || '.') : '.';
@@ -36,16 +51,29 @@ window.CACode = {
       if (d.content !== undefined) {
         this.currentFilePath = path;
         this.codeBrowseOpen = false;
+        this.mdPreview = false;
         this.fileContent = d.content;
         this.$nextTick(() => this.initEditor());
       }
+    },
+    toggleMdPreview() {
+      if (this.mdPreview) {
+        this.mdPreview = false;
+        this.$nextTick(() => this.initEditor());
+      } else {
+        if (this.cm) { this.fileContent = this.cm.getValue(); this.cm.toTextArea(); this.cm = null; }
+        this.mdPreview = true;
+      }
+    },
+    renderMarkdown(text) {
+      return window.marked.parse(text || '', { gfm: true, breaks: false });
     },
     async saveFile() {
       if (this.cm) this.fileContent = this.cm.getValue();
       await this.api('/api/file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: this.currentFilePath, content: this.fileContent}) });
     },
     fileMode(path) {
-      const ext = ((path || '').split('.').pop() || '').toLowerCase();
+      const ext = this.extOf(path);
       const map = {
         py: 'python', pyw: 'python',
         js: 'javascript', mjs: 'javascript', jsx: 'javascript', ts: 'javascript', tsx: 'javascript',
@@ -62,7 +90,7 @@ window.CACode = {
       return map[ext] === undefined ? null : map[ext];
     },
     langLabel() {
-      const ext = ((this.currentFilePath || '').split('.').pop() || '').toLowerCase();
+      const ext = this.extOf(this.currentFilePath);
       const label = {
         py: 'Python', js: 'JavaScript', mjs: 'JavaScript', jsx: 'JSX', ts: 'TypeScript',
         html: 'HTML', htm: 'HTML', css: 'CSS', scss: 'SCSS', xml: 'XML', json: 'JSON',
