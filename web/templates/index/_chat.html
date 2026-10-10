@@ -80,8 +80,11 @@
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><div class="md-body" v-html="renderMarkdown(streamText + '▌')"></div></div>
         </div>
       </div>
-      <div class="input-group">
-        <input v-model="inputText" class="form-control" placeholder="输入消息…" @keyup.enter="sendMessage">
+      <div class="input-group chat-input-group">
+        <textarea ref="chatInput" v-model="inputText" class="form-control chat-input" rows="1"
+                  placeholder="输入消息…（Enter 发送，Shift+Enter 换行）"
+                  @keydown.enter="onChatEnter"
+                  @input="autoResize"></textarea>
         <button class="btn btn-primary" @click="sendMessage">发送</button>
         <button class="btn btn-outline-secondary" @click="resumeSession">Resume</button>
       </div>

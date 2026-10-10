@@ -83,9 +83,23 @@ window.CAChat = {
       await this.api('/api/sessions/' + sid + '/feishu/toggle', { method:'POST' });
       await this.loadSessions();
     },
+    onChatEnter(e) {
+      if (e.shiftKey) return;   // Shift+Enter 走浏览器默认换行
+      e.preventDefault();       // 其余 Enter（含 Ctrl+Enter）发送
+      this.sendMessage();
+    },
+    autoResize() {
+      const el = this.$refs.chatInput;
+      if (!el) return;
+      const cs = getComputedStyle(el);
+      const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight + border) + 'px';
+    },
     async sendMessage() {
       if (!this.inputText.trim() || !this.currentSid) return;
       const text = this.inputText.trim(); this.inputText = '';
+      this.$nextTick(this.autoResize);
       const mid = this.uid();
       await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text, id: mid}) });
       this.streamText = '';
