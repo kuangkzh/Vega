@@ -42,7 +42,7 @@
                 <pre class="msg-reasoning">[[ m.reasoning_content ]]</pre>
               </details>
               <details v-if="m.tool_calls" class="msg-assistant">
-                <summary>工具调用</summary>
+                <summary>工具调用：[[ m.tool_calls.map(tc => tc.function.name).filter(Boolean).join('、') ]]</summary>
                 <div v-for="tc in m.tool_calls" class="tool-call mb-2">
                   <div class="fw-semibold">→ [[ tc.function.name ]]</div>
                   <pre>[[ formatArgs(tc.function.arguments) ]]</pre>
