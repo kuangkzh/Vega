@@ -27,7 +27,7 @@ class SessionManager:
             sess = AgentSession(
                 session_id=s.id, cwd=self.cwd, config=self.config,
                 runtime=self.runtime, store=self.store, model_provider=self.model_provider,
-                manager=self, messages=s.messages, token_usage=s.token_usage, updated_at=s.updated_at,
+                manager=self, token_usage=s.token_usage, created_at=s.created_at, updated_at=s.updated_at,
             )
             self.sessions[s.id] = sess
             sess.start()
@@ -35,21 +35,21 @@ class SessionManager:
             self.create()
         return self
 
-    def create(
-        self,
-        messages: Optional[List[Dict[str, Any]]] = None,
-        token_usage: Optional[Dict[str, int]] = None,
-        start: bool = True,
-    ) -> AgentSession:
+    def _make_session(self) -> AgentSession:
         sid = uuid.uuid4().hex
         sess = AgentSession(
             session_id=sid, cwd=self.cwd, config=self.config,
             runtime=self.runtime, store=self.store, model_provider=self.model_provider,
-            manager=self, messages=messages, token_usage=token_usage,
+            manager=self,
         )
         with self._lock:
             self.sessions[sid] = sess
         sess._persist()
+        return sess
+
+    def create(self, start: bool = True) -> AgentSession:
+        sess = self._make_session()
+        sess._insert_system_message()
         if start:
             sess.start()
         return sess
@@ -63,13 +63,16 @@ class SessionManager:
             return list(self.sessions.values())
 
     def fork(self, sid: str, message_index: Optional[int] = None) -> Optional[AgentSession]:
-        sess = self.get(sid)
-        if sess is None:
+        if self.get(sid) is None:
             return None
-        messages = list(sess.messages)
-        if message_index is not None:
-            messages = messages[: max(0, message_index) + 1]
-        return self.create(messages=messages)
+        msgs = self.store.load_messages(sid)
+        up_to_id = None
+        if message_index is not None and 0 <= message_index < len(msgs):
+            up_to_id = msgs[message_index]["id"]
+        dst = self._make_session()
+        self.store.copy_messages(sid, dst.id, up_to_id)
+        dst.start()
+        return dst
 
     def delete(self, sid: str) -> None:
         with self._lock:
@@ -79,6 +82,7 @@ class SessionManager:
         if sess is not None:
             sess.stop()
             self.store.delete_session(sid)
+            self.store.delete_messages(sid)
             self.store.delete_tasks_by_session(sid)
 
     def send(self, sid: str, text: str, mid: Optional[str] = None) -> Optional[AgentSession]:
@@ -89,9 +93,8 @@ class SessionManager:
         return sess
 
     def restart_after_compress(self, old: AgentSession, summary: str) -> None:
-        new = self.create(
-            messages=[{"role": "system", "content": f"[对话历史摘要]\n{summary}"}],
-        )
+        new = self._make_session()
+        self.store.append_message(new.id, {"role": "system", "content": f"[对话历史摘要]\n{summary}"})
         old.emit({"type": "restart", "old_id": old.id, "new_id": new.id})
         while not old.queue.empty():
             try:
@@ -152,7 +155,7 @@ class SessionManager:
         }
         content = format_tool_content(tool_name, payload, msg)
         tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content, "task_id": task.id}
-        sess.messages.append(tool_msg)
+        self.store.append_message(session_id, tool_msg)
         sess._persist()
         sess.emit({"type": "message", "message": tool_msg})
         sess.nudge()

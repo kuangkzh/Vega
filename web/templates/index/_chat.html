@@ -57,6 +57,7 @@
               </details>
               <button v-if="m.task_id" type="button" class="btn btn-sm btn-outline-secondary mt-1" @click="openTask(m.task_id)">查看后台任务</button>
             </div>
+            <div v-else-if="m.role==='error'" class="alert alert-danger mb-2 py-1 px-2 msg-error"><b>⚠ 出错：</b><span>[[ m.content ]]</span></div>
             <div v-else class="msg-assistant">
               <details>
                 <summary>系统</summary>

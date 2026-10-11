@@ -48,10 +48,12 @@ window.CAChat = {
     },
     async selectSession(sid) {
       this.sessionsOpen = false;
+      this.closeStream();
       this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
       const s = this.sessions.find(x => x.id === sid);
       if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
-      await this.loadMessages(); this.openStream();
+      await this.loadMessages();
+      this.openStream();
     },
     async loadMessages() {
       if (!this.currentSid) return;
@@ -75,7 +77,7 @@ window.CAChat = {
         this.streamReasoning = '';
         this.pending = [];
         this.usage = null;
-        if (this.es) { this.es.close(); this.es = null; }
+        this.closeStream();
       }
       await this.loadSessions();
     },
@@ -115,28 +117,38 @@ window.CAChat = {
       await this.api('/api/sessions/' + this.currentSid + '/resume', { method:'POST' });
     },
     openStream() {
-      if (this.es) { this.es.close(); this.es = null; }
+      this.closeStream();
       if (!this.currentSid) return;
-      this.es = new EventSource('/api/sessions/' + this.currentSid + '/stream');
+      const sid = this.currentSid;
+      this.es = new EventSource('/api/sessions/' + sid + '/stream');
       this.es.onmessage = (ev) => {
+        if (sid !== this.currentSid) return;  // 忽略残留旧流事件，避免切换会话时串台
         const d = JSON.parse(ev.data);
+        const cur = this.sessions.find(x => x.id === sid);
         if (d.type === 'text') this.streamText += d.content;
         else if (d.type === 'reasoning') this.streamReasoning += d.content;
         else if (d.type === 'queued') this.pending.push({ id: d.id, content: d.content });
         else if (d.type === 'message') {
           if (d.id) this.pending = this.pending.filter(p => p.id !== d.id);
           this.messages.push(d.message);
+          if (cur) cur.message_count = this.messages.length;
           if (d.message && d.message.role === 'assistant') { this.streamText = ''; this.streamReasoning = ''; }
         }
         else if (d.type === 'usage') this.usage = d.usage;
         else if (d.type === 'restart') {
           this.loadSessions().then(() => this.selectSession(d.new_id));
         }
-        else if (d.type === 'status' && d.status === 'paused') {
-          this.streamText = ''; this.streamReasoning = ''; this.pending = [];
-          this.loadMessages(); this.loadSessions();
+        else if (d.type === 'status') {
+          if (cur) cur.status = d.status;
+          if (d.status === 'paused') {
+            this.streamText = ''; this.streamReasoning = ''; this.pending = [];
+            this.loadMessages(); this.loadSessions();
+          }
         }
       };
+    },
+    closeStream() {
+      if (this.es) { this.es.close(); this.es = null; }
     },
   },
 };

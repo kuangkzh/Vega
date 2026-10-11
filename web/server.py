@@ -112,7 +112,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         s = manager.get(sid)
         if s is None:
             return jsonify({"error": "not found"}), 404
-        return jsonify(s.messages)
+        return jsonify(s.store.load_messages(s.id))
 
     @app.post("/api/sessions/<sid>/message")
     @login_required

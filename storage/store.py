@@ -1,10 +1,11 @@
-"""SQLite 持久化（会话 / 后台任务）。线程安全。"""
+"""SQLite 持久化（会话 / 消息 / 后台任务）。线程安全。"""
 from __future__ import annotations
 
 import json
 import os
 import sqlite3
 import threading
+import time
 from typing import List, Optional
 
 from storage.schemas import BackgroundTask, ChatSession
@@ -35,7 +36,6 @@ class Store:
                         created_at REAL,
                         updated_at REAL,
                         status TEXT,
-                        messages TEXT,
                         token_usage TEXT
                     );
                     CREATE TABLE IF NOT EXISTS tasks (
@@ -50,11 +50,41 @@ class Store:
                         result TEXT,
                         logs TEXT
                     );
+                    CREATE TABLE IF NOT EXISTS messages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL DEFAULT '',
+                        reasoning_content TEXT,
+                        tool_calls TEXT,
+                        tool_call_id TEXT,
+                        name TEXT,
+                        task_id TEXT,
+                        created_at REAL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
                     """
                 )
                 conn.commit()
             finally:
                 conn.close()
+
+    def _insert_msg(self, conn: sqlite3.Connection, session_id: str, role: str, m: dict) -> None:
+        conn.execute(
+            "INSERT INTO messages(session_id, role, content, reasoning_content, tool_calls, tool_call_id, name, task_id, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                session_id,
+                role,
+                m.get("content") or "",
+                m.get("reasoning_content") or "",
+                json.dumps(m["tool_calls"], ensure_ascii=False) if m.get("tool_calls") else None,
+                m.get("tool_call_id") or "",
+                m.get("name") or "",
+                m.get("task_id") or "",
+                time.time(),
+            ),
+        )
 
     # ---------- 会话 ----------
     def save_session(self, s: ChatSession) -> None:
@@ -62,11 +92,9 @@ class Store:
             conn = self._conn()
             try:
                 conn.execute(
-                    "INSERT OR REPLACE INTO sessions(id, created_at, updated_at, status, messages, token_usage) "
-                    "VALUES (?,?,?,?,?,?)",
-                    (s.id, s.created_at, s.updated_at, s.status,
-                     json.dumps(s.messages, ensure_ascii=False),
-                     json.dumps(s.token_usage)),
+                    "INSERT OR REPLACE INTO sessions(id, created_at, updated_at, status, token_usage) "
+                    "VALUES (?,?,?,?,?)",
+                    (s.id, s.created_at, s.updated_at, s.status, json.dumps(s.token_usage)),
                 )
                 conn.commit()
             finally:
@@ -85,7 +113,9 @@ class Store:
         with self._lock:
             conn = self._conn()
             try:
-                rows = conn.execute("SELECT * FROM sessions ORDER BY updated_at DESC").fetchall()
+                rows = conn.execute(
+                    "SELECT id, created_at, updated_at, status, token_usage FROM sessions ORDER BY updated_at DESC"
+                ).fetchall()
                 return [self._row_to_session(r) for r in rows]
             finally:
                 conn.close()
@@ -115,9 +145,111 @@ class Store:
             created_at=float(row["created_at"] or 0.0),
             updated_at=float(row["updated_at"] or 0.0),
             status=str(row["status"] or "paused"),
-            messages=json.loads(row["messages"] or "[]"),
             token_usage=json.loads(row["token_usage"] or "{}"),
         )
+
+    # ---------- 消息 ----------
+    def append_message(self, session_id: str, msg: dict) -> None:
+        with self._lock:
+            conn = self._conn()
+            try:
+                self._insert_msg(conn, session_id, msg.get("role") or "system", msg)
+                conn.commit()
+            finally:
+                conn.close()
+
+    def load_messages(self, session_id: str) -> List[dict]:
+        """按写入顺序返回该会话全部消息（含 system / error，用于展示与 fork）。"""
+        with self._lock:
+            conn = self._conn()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM messages WHERE session_id=? ORDER BY id", (session_id,)
+                ).fetchall()
+                return [self._row_to_msg(r) for r in rows]
+            finally:
+                conn.close()
+
+    def load_context(self, session_id: str) -> List[dict]:
+        """模型上下文：排除 role=error 的只展示型消息。"""
+        with self._lock:
+            conn = self._conn()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM messages WHERE session_id=? AND role != 'error' ORDER BY id",
+                    (session_id,),
+                ).fetchall()
+                return [self._row_to_msg(r) for r in rows]
+            finally:
+                conn.close()
+
+    def first_user_message(self, session_id: str) -> Optional[str]:
+        with self._lock:
+            conn = self._conn()
+            try:
+                row = conn.execute(
+                    "SELECT content FROM messages WHERE session_id=? AND role='user' ORDER BY id LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+                return str(row["content"]) if row else None
+            finally:
+                conn.close()
+
+    def count_messages(self, session_id: str) -> int:
+        with self._lock:
+            conn = self._conn()
+            try:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS c FROM messages WHERE session_id=?", (session_id,)
+                ).fetchone()
+                return int(row["c"] or 0)
+            finally:
+                conn.close()
+
+    def copy_messages(self, src_session_id: str, dst_session_id: str, up_to_id: Optional[int] = None) -> None:
+        """fork：把源会话消息（可截断到某条消息 id）复制到目标会话。"""
+        cols = "session_id, role, content, reasoning_content, tool_calls, tool_call_id, name, task_id, created_at"
+        sel = "role, content, reasoning_content, tool_calls, tool_call_id, name, task_id, created_at"
+        with self._lock:
+            conn = self._conn()
+            try:
+                if up_to_id is not None:
+                    conn.execute(
+                        f"INSERT INTO messages({cols}) SELECT ?, {sel} FROM messages WHERE session_id=? AND id<=? ORDER BY id",
+                        (dst_session_id, src_session_id, up_to_id),
+                    )
+                else:
+                    conn.execute(
+                        f"INSERT INTO messages({cols}) SELECT ?, {sel} FROM messages WHERE session_id=? ORDER BY id",
+                        (dst_session_id, src_session_id),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+
+    def delete_messages(self, session_id: str) -> None:
+        with self._lock:
+            conn = self._conn()
+            try:
+                conn.execute("DELETE FROM messages WHERE session_id=?", (session_id,))
+                conn.commit()
+            finally:
+                conn.close()
+
+    @staticmethod
+    def _row_to_msg(row: sqlite3.Row) -> dict:
+        m = {"id": row["id"], "role": row["role"], "content": row["content"] or ""}
+        if row["reasoning_content"]:
+            m["reasoning_content"] = row["reasoning_content"]
+        if row["tool_calls"]:
+            m["tool_calls"] = json.loads(row["tool_calls"])
+        if row["tool_call_id"]:
+            m["tool_call_id"] = row["tool_call_id"]
+        if row["name"]:
+            m["name"] = row["name"]
+        if row["task_id"]:
+            m["task_id"] = row["task_id"]
+        return m
 
     # ---------- 后台任务 ----------
     def save_task(self, t: BackgroundTask) -> None:
