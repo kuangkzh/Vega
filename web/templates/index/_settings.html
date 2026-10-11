@@ -43,6 +43,7 @@
         <textarea v-model="config.system_prompt" class="form-control form-control-sm" v-autosize></textarea>
         <div class="row g-2 mt-2">
           <div class="col-4"><label class="form-label small mb-0">重试次数</label><input v-model.number="config.retry" class="form-control form-control-sm"></div>
+          <div class="col-4"><label class="form-label small mb-0">最大轮次（0=不限）</label><input v-model.number="config.max_rounds" class="form-control form-control-sm"></div>
         </div>
       </div></div>
 <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">审批（Approver）</h6></div><div class="card-body">

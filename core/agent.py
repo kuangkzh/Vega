@@ -193,7 +193,10 @@ class AgentSession:
     def _model_loop(self) -> None:
         self._pause_requested = False
         rounds = 0
-        while not self._stop and not self._pause_requested and rounds < 20:
+        max_rounds = int(self.config.get("max_rounds", 20) or 0)
+        while not self._stop and not self._pause_requested:
+            if max_rounds and rounds >= max_rounds:
+                break
             rounds += 1
             content, tool_calls = self._call_model()
             if self._stop or self._pause_requested:

@@ -15,6 +15,7 @@ window.CASettings = {
       const payload = {
         system_prompt: this.config.system_prompt,
         retry: this.config.retry,
+        max_rounds: this.config.max_rounds,
         approver: this.config.approver,
         summarizer: this.config.summarizer,
         feishu: this.config.feishu,

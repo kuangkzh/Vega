@@ -13,6 +13,7 @@
     }
   ],
   "active_model": "gpt-4o",
+  "max_rounds": 20,
   "retry": 3,
   "summarizer": {
     "prompt": "请把以上对话压缩成简洁摘要，保留关键任务、结论与未完成事项。"

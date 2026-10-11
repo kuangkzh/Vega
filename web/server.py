@@ -299,7 +299,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
                 m.pop("api_key", None)
         if isinstance(data.get("feishu"), dict) and data["feishu"].get("app_secret") == "******":
             data["feishu"].pop("app_secret", None)
-        allowed = ("system_prompt", "plugins", "approver", "retry", "feishu", "summarizer")
+        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "feishu", "summarizer")
 
         def deep_merge(a, b):
             for k, v in b.items():
