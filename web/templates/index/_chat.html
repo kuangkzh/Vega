@@ -38,11 +38,11 @@
             <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>
             <div v-else-if="m.role==='assistant'">
               <details v-if="m.reasoning_content" class="msg-assistant">
-                <summary>思考过程</summary>
+                <summary><svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a2 2 0 0 0-.453-.618A5.98 5.98 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/></svg>思考过程</summary>
                 <pre class="msg-reasoning">[[ m.reasoning_content ]]</pre>
               </details>
               <details v-if="m.tool_calls" class="msg-assistant">
-                <summary>工具调用：[[ m.tool_calls.map(tc => tc.function.name).filter(Boolean).join('、') ]]</summary>
+                <summary><svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M16 4.5a4.5 4.5 0 0 1-1.703 3.526L13 5l2.959-1.11q.04.3.041.61"/><path d="M11.5 9c.653 0 1.273-.139 1.833-.39L12 5.5 11 3l3.826-1.53A4.5 4.5 0 0 0 7.29 6.092l-6.116 5.096a2.583 2.583 0 1 0 3.638 3.638L9.908 8.71A4.5 4.5 0 0 0 11.5 9m-1.292-4.361-.596.893.809-.27a.25.25 0 0 1 .287.377l-.596.893.809-.27.158.475-1.5.5a.25.25 0 0 1-.287-.376l.596-.893-.809.27a.25.25 0 0 1-.287-.377l.596-.893-.809.27-.158-.475 1.5-.5a.25.25 0 0 1 .287.376M3 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/></svg>工具调用：[[ m.tool_calls.map(tc => tc.function.name).filter(Boolean).join('、') ]]</summary>
                 <div v-for="tc in m.tool_calls" class="tool-call mb-2">
                   <div class="fw-semibold">→ [[ tc.function.name ]]</div>
                   <pre>[[ formatArgs(tc.function.arguments) ]]</pre>
@@ -52,7 +52,7 @@
             </div>
             <div v-else-if="m.role==='tool'">
               <details class="msg-assistant">
-                <summary>工具结果：[[ m.name ]]</summary>
+                <summary><svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0"/><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></svg>工具结果：[[ m.name ]]</summary>
                 <pre>[[ m.content ]]</pre>
               </details>
               <button v-if="m.task_id" type="button" class="btn btn-sm btn-outline-secondary mt-1" @click="openTask(m.task_id)">查看后台任务</button>
@@ -74,7 +74,7 @@
           </div>
           <div v-for="(m, i) in pending" :key="'p'+i" class="msg-user" style="opacity:.7"><b>用户：</b><span>[[ m.content ]]</span> <span class="badge text-bg-secondary ms-1">排队中</span></div>
           <details v-if="streamReasoning" class="msg-assistant" :open="streamReasoning && !streamText">
-            <summary>思考过程（实时）</summary>
+            <summary><svg class="summary-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a2 2 0 0 0-.453-.618A5.98 5.98 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/></svg>思考过程（实时）</summary>
             <pre class="msg-reasoning">[[ streamReasoning ]]</pre>
           </details>
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><div class="md-body" v-html="renderMarkdown(streamText + '▌')"></div></div>
