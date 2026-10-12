@@ -55,7 +55,7 @@ window.CAChat = {
     async selectSession(sid) {
       this.sessionsOpen = false;
       this.closeStream();
-      this.currentSid = sid; this.streamText = ''; this.streamReasoning = '';
+      this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
       const s = this.sessions.find(x => x.id === sid);
       if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
       await this.loadMessages();
@@ -64,6 +64,12 @@ window.CAChat = {
     async loadMessages() {
       if (!this.currentSid) return;
       const r = await this.api('/api/sessions/' + this.currentSid + '/messages'); this.messages = await r.json();
+      await this.loadPending();
+    },
+    async loadPending() {
+      if (!this.currentSid) return;
+      const r = await this.api('/api/sessions/' + this.currentSid + '/pending');
+      this.pending = await r.json() || [];
     },
     async newSession() {
       const r = await this.api('/api/sessions', { method:'POST' });
@@ -79,6 +85,7 @@ window.CAChat = {
       if (this.currentSid === sid) {
         this.currentSid = null;
         this.messages = [];
+        this.pending = [];
         this.streamText = '';
         this.streamReasoning = '';
         this.usage = null;
@@ -131,6 +138,12 @@ window.CAChat = {
           this.messages.push(d.message);
           if (cur) cur.message_count = this.messages.length;
           if (d.message && d.message.role === 'assistant') { this.streamText = ''; this.streamReasoning = ''; }
+        }
+        else if (d.type === 'pending_add') {
+          if (!this.pending.some(x => x.id === d.item.id)) this.pending.push(d.item);
+        }
+        else if (d.type === 'pending_remove') {
+          this.pending = this.pending.filter(x => x.id !== d.id);
         }
         else if (d.type === 'usage') this.usage = d.usage;
         else if (d.type === 'restart') {

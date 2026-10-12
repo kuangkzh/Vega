@@ -5,6 +5,7 @@ import json
 import queue
 import threading
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 from core.config import build_model, resolve_prompt
@@ -70,27 +71,28 @@ class AgentSession:
         self._pending.append(item)
         self._wake.set()
 
-    def enqueue_many(self, items) -> None:
-        if items:
-            self._pending.extend(items)
-            self._wake.set()
-
     def drain_pending(self) -> List[Any]:
-        items: List[Any] = []
-        while True:
-            try:
-                items.append(self._pending.pop())
-            except IndexError:
-                return items
+        """一次性取出队列全部项，按入队顺序（FIFO）返回并清空队列。"""
+        items = self._pending
+        self._pending = []
+        return items
 
     def send(self, text: str) -> None:
-        self._enqueue(("user", text))
+        item = {"id": uuid.uuid4().hex, "kind": "user", "text": text}
+        self._enqueue(item)
+        self.emit({"type": "pending_add", "item": item})
         self._ensure_started()
 
     def receive_tool_result(self, msg: Dict[str, Any]) -> None:
         """后台异步任务完成后的 tool 结果，交回统一队列处理。"""
-        self._enqueue(("tool", msg))
+        item = {"id": uuid.uuid4().hex, "kind": "tool", "message": msg}
+        self._enqueue(item)
+        self.emit({"type": "pending_add", "item": item})
         self._ensure_started()
+
+    def pending_items(self) -> List[Dict[str, Any]]:
+        """当前排队中、可展示的输入项（user + tool），按 FIFO 顺序，不含 continue 哨兵。"""
+        return [it for it in self._pending if it.get("kind") in ("user", "tool")]
 
     def resume(self) -> None:
         self._ensure_started()
@@ -172,7 +174,7 @@ class AgentSession:
     # ---------- 主循环 ----------
     def nudge(self) -> None:
         """Resume / 异步结果已回填：唤醒 loop 继续推理（不追加新消息）。"""
-        self._enqueue(("continue",))
+        self._enqueue({"kind": "continue"})
         self._ensure_started()
 
     def _worker(self) -> None:
@@ -196,18 +198,25 @@ class AgentSession:
                 self._set_status("paused")
 
     def _append(self, item) -> None:
-        """把队列事件对应的消息追加进上下文；continue 不追加。"""
-        kind = item[0]
+        """把队列项对应的消息落库进上下文并推送；continue 哨兵不追加。
+
+        落库 = 唯一事实来源：所有可展示消息统一「先落库、后 emit message」，
+        队列项在进入上下文后同步 emit pending_remove，让前端从排队区移除。
+        """
+        kind = item.get("kind")
         if kind == "user":
-            _, text = item
-            self.store.append_message(self.id, {"role": "user", "content": text})
+            text = item.get("text") or ""
+            message = {"role": "user", "content": text}
+            self.store.append_message(self.id, message)
             self._persist()
-            self.emit({"type": "message", "message": {"role": "user", "content": text}})
+            self.emit({"type": "message", "message": message})
+            self.emit({"type": "pending_remove", "id": item["id"]})
         elif kind == "tool":
-            msg = item[1]
+            msg = item["message"]
             self.store.append_message(self.id, msg)
             self._persist()
             self.emit({"type": "message", "message": msg})
+            self.emit({"type": "pending_remove", "id": item["id"]})
 
     def _model_loop(self) -> None:
         self._pause_requested = False

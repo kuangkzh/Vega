@@ -125,7 +125,7 @@ class SessionManager:
         new = self._make_session()
         self.store.append_message(new.id, {"role": "system", "content": f"[对话历史摘要]\n{summary}"})
         old.emit({"type": "restart", "old_id": old.id, "new_id": new.id})
-        new.enqueue_many(old.drain_pending())
+        old.drain_pending()  # 压缩重启不迁移队列：old 的待处理输入作废（视同 fork 不拷贝）
         old.stop()
         new.nudge()
 

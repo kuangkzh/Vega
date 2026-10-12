@@ -114,6 +114,14 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
             return jsonify({"error": "not found"}), 404
         return jsonify(s.store.load_messages(s.id))
 
+    @app.get("/api/sessions/<sid>/pending")
+    @login_required
+    def api_pending(sid):
+        s = manager.get(sid)
+        if s is None:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(s.pending_items())
+
     @app.post("/api/sessions/<sid>/message")
     @login_required
     def api_send(sid):

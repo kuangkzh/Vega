@@ -79,6 +79,18 @@
             <pre class="msg-reasoning">[[ streamReasoning ]]</pre>
           </details>
           <div v-if="streamText" class="msg-assistant"><b>助手：</b><div class="md-body" v-html="renderMarkdown(streamText + '▌')"></div></div>
+          <div v-if="pending.length" class="pending-zone">
+            <div class="small text-muted border-top pt-2 mb-1">排队中（尚未进入上下文）· [[ pending.length ]] 条</div>
+            <div v-for="p in pending" :key="p.id" class="mb-2">
+              <div v-if="p.kind==='user'" class="msg-user"><b>（排队）用户：</b><span>[[ p.text ]]</span></div>
+              <div v-else-if="p.kind==='tool'" class="msg-assistant">
+                <details>
+                  <summary>（排队）工具结果：[[ p.message.name ]]</summary>
+                  <pre>[[ p.message.content ]]</pre>
+                </details>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="input-group chat-input-group">
