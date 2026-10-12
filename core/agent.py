@@ -268,13 +268,16 @@ class AgentSession:
         self.emit({"type": "message", "message": dict(assistant_msg)})
         return content, tool_calls
 
-    @staticmethod
-    def _to_model_messages(msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """从 DB 消息行构造干净的模型请求体：剔除 id/task_id 等内部字段，保证 role 合法。"""
+    def _to_model_messages(self, msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """从 DB 消息行构造干净的模型请求体：剔除 id/task_id 等内部字段，保证 role 合法。
+
+        include_reasoning_content 为 False 时不把 reasoning_content 回传入上下文，以节约 token。
+        """
         out: List[Dict[str, Any]] = []
+        include_reasoning = bool(self.config.get("include_reasoning_content", True))
         for m in msgs:
             clean: Dict[str, Any] = {"role": m["role"], "content": m.get("content") or ""}
-            if m.get("reasoning_content"):
+            if include_reasoning and m.get("reasoning_content"):
                 clean["reasoning_content"] = m["reasoning_content"]
             if m.get("tool_calls"):
                 clean["tool_calls"] = m["tool_calls"]

@@ -4,6 +4,7 @@ window.CASettings = {
       this.config = await (await this.api('/api/config')).json();
       this.config.approver = this.config.approver || {};
       this.config.im_link = this.config.im_link || {};
+      this.config.include_reasoning_content = this.config.include_reasoning_content !== false;
       this.pluginList = await (await this.api('/api/plugins')).json();
       const d = await (await this.api('/api/models')).json();
       this.models = d.models; this.activeModel = d.active;
@@ -16,6 +17,7 @@ window.CASettings = {
         system_prompt: this.config.system_prompt,
         retry: this.config.retry,
         max_rounds: this.config.max_rounds,
+        include_reasoning_content: this.config.include_reasoning_content,
         approver: this.config.approver,
         summarizer: this.config.summarizer,
         im_link: this.config.im_link,

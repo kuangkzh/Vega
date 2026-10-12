@@ -313,7 +313,7 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
                 m.pop("api_key", None)
         if isinstance(data.get("im_link"), dict) and data["im_link"].get("app_secret") == "******":
             data["im_link"].pop("app_secret", None)
-        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "im_link", "summarizer")
+        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "im_link", "summarizer", "include_reasoning_content")
 
         def deep_merge(a, b):
             for k, v in b.items():
