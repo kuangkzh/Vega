@@ -81,8 +81,8 @@ window.CAChat = {
       }
       await this.loadSessions();
     },
-    async toggleFeishu(sid) {
-      await this.api('/api/sessions/' + sid + '/feishu/toggle', { method:'POST' });
+    async toggleIm(sid) {
+      await this.api('/api/sessions/' + sid + '/im/toggle', { method:'POST' });
       await this.loadSessions();
     },
     onChatEnter(e) {
@@ -149,6 +149,20 @@ window.CAChat = {
     },
     closeStream() {
       if (this.es) { this.es.close(); this.es = null; }
+    },
+    openGlobalStream() {
+      if (this.globalEs) return;
+      this.globalEs = new EventSource('/api/events');
+      this.globalEs.onmessage = (ev) => {
+        const d = JSON.parse(ev.data);
+        if (d.type === 'session') this.upsertSession(d.session);
+      };
+    },
+    upsertSession(sess) {
+      const i = this.sessions.findIndex(x => x.id === sess.id);
+      if (i >= 0) this.sessions[i] = sess;
+      else this.sessions.push(sess);
+      this.sessions.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
     },
   },
 };

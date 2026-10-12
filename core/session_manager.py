@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import queue
 import threading
 import uuid
 from typing import Any, Dict, List, Optional
@@ -18,7 +19,8 @@ class SessionManager:
         self.cwd = cwd
         self.model_provider = model_provider
         self.sessions: Dict[str, AgentSession] = {}
-        self._feishu_session_id: Optional[str] = None
+        self._im_session_id: Optional[str] = None
+        self._global_subscribers: set = set()
         self._lock = threading.RLock()
 
     def load(self) -> "SessionManager":
@@ -62,6 +64,33 @@ class SessionManager:
         with self._lock:
             return list(self.sessions.values())
 
+    # ---------- 全局事件总线（所有会话状态/元数据实时广播） ----------
+    def subscribe_global(self) -> "queue.Queue":
+        q: "queue.Queue" = queue.Queue()
+        with self._lock:
+            self._global_subscribers.add(q)
+        return q
+
+    def unsubscribe_global(self, q) -> None:
+        with self._lock:
+            self._global_subscribers.discard(q)
+
+    def emit_global(self, event: Dict[str, Any]) -> None:
+        with self._lock:
+            subs = list(self._global_subscribers)
+        for q in subs:
+            try:
+                q.put(event)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def notify_session(self, sess: AgentSession) -> None:
+        """会话元数据（status/title/message_count/updated_at/token_usage）变化时广播给所有前端。"""
+        d = sess.to_dict()
+        with self._lock:
+            d["im_bound"] = self._im_session_id == sess.id
+        self.emit_global({"type": "session", "session": d})
+
     def fork(self, sid: str, message_index: Optional[int] = None) -> Optional[AgentSession]:
         if self.get(sid) is None:
             return None
@@ -77,8 +106,8 @@ class SessionManager:
     def delete(self, sid: str) -> None:
         with self._lock:
             sess = self.sessions.pop(sid, None)
-            if self._feishu_session_id == sid:
-                self._feishu_session_id = None
+            if self._im_session_id == sid:
+                self._im_session_id = None
         if sess is not None:
             sess.stop()
             self.store.delete_session(sid)
@@ -110,31 +139,31 @@ class SessionManager:
         for s in sessions:
             s.stop()
 
-    # ---------- 飞书监听会话绑定（同一时间仅一个会话监听） ----------
-    def get_feishu_session_id(self) -> Optional[str]:
+    # ---------- IM 监听会话绑定（同一时间仅一个会话监听） ----------
+    def get_im_session_id(self) -> Optional[str]:
         with self._lock:
-            return self._feishu_session_id
+            return self._im_session_id
 
-    def toggle_feishu(self, sid: str) -> bool:
-        """切换飞书监听：绑定 sid；若已绑定则该次取消。返回切换后是否处于绑定状态。"""
+    def toggle_im(self, sid: str) -> bool:
+        """切换 IM 监听：绑定 sid；若已绑定则该次取消。返回切换后是否处于绑定状态。"""
         with self._lock:
             if sid not in self.sessions:
                 return False
-            if self._feishu_session_id == sid:
-                self._feishu_session_id = None
+            if self._im_session_id == sid:
+                self._im_session_id = None
                 return False
-            self._feishu_session_id = sid
+            self._im_session_id = sid
             return True
 
-    def feishu_recv(self, text: str) -> None:
-        """飞书入站消息：投递到当前绑定会话，末尾标注来源。未绑定则丢弃。"""
-        sid = self.get_feishu_session_id()
+    def im_recv(self, text: str) -> None:
+        """IM 入站消息：投递到当前绑定会话，末尾标注来源。未绑定则丢弃。"""
+        sid = self.get_im_session_id()
         if not sid:
             return
         sess = self.get(sid)
         if sess is None:
             return
-        sess.send(f"{text}（本消息来自飞书）")
+        sess.send(f"{text}（本消息来自 IM）")
 
     # 异步任务完成回调（task_manager.on_done）
     def on_task_done(self, session_id: Optional[str], tool_name: str, task) -> None:

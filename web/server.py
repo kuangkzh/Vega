@@ -26,7 +26,7 @@ def _safe_path(cwd: str, path: str) -> str:
 _GZIP_MIN_SIZE = 10 * 1024
 
 
-def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, config_path=None):
+def create_app(config, store, manager, runtime, task_manager, cwd, config_path=None):
     app = Flask(__name__)
 
     @app.after_request
@@ -81,8 +81,8 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
     @app.get("/api/sessions")
     @login_required
     def api_sessions():
-        bound = manager.get_feishu_session_id()
-        return jsonify([{**s.to_dict(), "feishu": s.id == bound} for s in manager.list()])
+        bound = manager.get_im_session_id()
+        return jsonify([{**s.to_dict(), "im_bound": s.id == bound} for s in manager.list()])
 
     @app.post("/api/sessions")
     @login_required
@@ -145,13 +145,13 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         s.pause()
         return jsonify({"ok": True})
 
-    @app.post("/api/sessions/<sid>/feishu/toggle")
+    @app.post("/api/sessions/<sid>/im/toggle")
     @login_required
-    def api_feishu_toggle(sid):
+    def api_im_toggle(sid):
         if manager.get(sid) is None:
             return jsonify({"error": "not found"}), 404
-        bound = manager.toggle_feishu(sid)
-        return jsonify({"feishu": bound, "feishu_session_id": manager.get_feishu_session_id()})
+        bound = manager.toggle_im(sid)
+        return jsonify({"im_bound": bound, "im_session_id": manager.get_im_session_id()})
 
     @app.get("/api/sessions/<sid>/stream")
     def api_stream(sid):
@@ -161,6 +161,12 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         if s is None:
             return jsonify({"error": "not found"}), 404
         return _sse_stream(s)
+
+    @app.get("/api/events")
+    def api_events():
+        if not auth.is_authed():
+            return jsonify({"error": "unauthorized"}), 401
+        return _global_sse_stream(manager)
 
     # ---------- 后台任务 ----------
     @app.get("/api/tasks")
@@ -285,9 +291,9 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         for m in cfg.get("models") or []:
             if isinstance(m, dict) and m.get("api_key"):
                 m["api_key"] = "******"
-        f = cfg.get("feishu") or {}
-        if f.get("app_secret"):
-            f["app_secret"] = "******"
+        im = cfg.get("im_link") or {}
+        if im.get("app_secret"):
+            im["app_secret"] = "******"
         return jsonify(cfg)
 
     @app.post("/api/config")
@@ -297,9 +303,9 @@ def create_app(config, store, manager, runtime, task_manager, cwd, feishu=None, 
         for m in data.get("models") or []:
             if isinstance(m, dict) and m.get("api_key") == "******":
                 m.pop("api_key", None)
-        if isinstance(data.get("feishu"), dict) and data["feishu"].get("app_secret") == "******":
-            data["feishu"].pop("app_secret", None)
-        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "feishu", "summarizer")
+        if isinstance(data.get("im_link"), dict) and data["im_link"].get("app_secret") == "******":
+            data["im_link"].pop("app_secret", None)
+        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "im_link", "summarizer")
 
         def deep_merge(a, b):
             for k, v in b.items():
@@ -412,5 +418,24 @@ def _sse_stream(sess) -> Response:
                 yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
         finally:
             sess.unsubscribe(q)
+
+    return Response(gen(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+def _global_sse_stream(manager) -> Response:
+    q = manager.subscribe_global()
+
+    def gen():
+        try:
+            yield "data: " + json.dumps({"type": "hello"}, ensure_ascii=False) + "\n\n"
+            while True:
+                try:
+                    ev = q.get(timeout=15)
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+                    continue
+                yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
+        finally:
+            manager.unsubscribe_global(q)
 
     return Response(gen(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})

@@ -7,7 +7,7 @@ import os
 from core.config import load_config, build_model
 from core.session_manager import SessionManager
 from core.task_manager import TaskManager
-from message.feishu import FeishuSource
+from im_link.base import build_im_link
 from models.openai import OpenAIModel
 from plugins.base import PluginRuntime
 from storage.store import Store
@@ -40,17 +40,18 @@ def main() -> None:
         return OpenAIModel(mc) if mc else None
 
     task_manager = TaskManager(store)
-    feishu = FeishuSource(config.get("feishu") or {})
+    im_link = build_im_link(config.get("im_link") or {})
     runtime = PluginRuntime(
         plugins_dir, config, cwd,
-        task_manager=task_manager, message_source=feishu, model_provider=model_provider,
+        task_manager=task_manager, im_link=im_link, model_provider=model_provider,
     )
     manager = SessionManager(store, runtime, config, cwd, model_provider).load()
     task_manager.on_done = manager.on_task_done
 
-    feishu.start(lambda text, _sender_id: manager.feishu_recv(text))
+    if im_link is not None:
+        im_link.start(lambda text, _sender_id: manager.im_recv(text))
 
-    app = create_app(config, store, manager, runtime, task_manager, cwd, feishu=feishu, config_path=config_path)
+    app = create_app(config, store, manager, runtime, task_manager, cwd, config_path=config_path)
     web = config.get("web") or {}
     app.run(host=web.get("host", "127.0.0.1"), port=int(web.get("port", 8000)), threaded=True, debug=False)
 

@@ -10,6 +10,7 @@ window.CACore = {
       if (!d.authed) { location.href = '/login'; return; }
       this.loading = false;
       await this.loadSessions();
+      this.openGlobalStream();
       if (this.sessions.length) this.selectSession(this.sessions[0].id);
     },
     async logout() { await this.api('/api/logout', { method:'POST' }); location.href = '/login'; },

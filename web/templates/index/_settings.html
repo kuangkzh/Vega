@@ -60,13 +60,14 @@
         <textarea v-model="config.summarizer.prompt" class="form-control form-control-sm" v-autosize></textarea>
       </div></div>
 
-      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">飞书</h6></div><div class="card-body">
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">IM 连接（im_link）</h6></div><div class="card-body">
         <div class="row g-2">
-          <div class="col-4"><label class="form-label small mb-0">App ID</label><input v-model="config.feishu.app_id" class="form-control form-control-sm"></div>
-          <div class="col-4"><label class="form-label small mb-0">App Secret</label><input v-model="config.feishu.app_secret" class="form-control form-control-sm"></div>
-          <div class="col-4"><label class="form-label small mb-0">Chat ID</label><input v-model="config.feishu.chat_id" class="form-control form-control-sm"></div>
+          <div class="col-3"><label class="form-label small mb-0">类型 (type)</label><input v-model="config.im_link.type" class="form-control form-control-sm" placeholder="feishu"></div>
+          <div class="col-3"><label class="form-label small mb-0">App ID</label><input v-model="config.im_link.app_id" class="form-control form-control-sm"></div>
+          <div class="col-3"><label class="form-label small mb-0">App Secret</label><input v-model="config.im_link.app_secret" class="form-control form-control-sm"></div>
+          <div class="col-3"><label class="form-label small mb-0">Chat ID</label><input v-model="config.im_link.chat_id" class="form-control form-control-sm"></div>
         </div>
-        <div v-if="config.feishu.app_secret==='******'" class="text-warning small mt-1">App Secret 已脱敏，留空则保留原值</div>
+        <div v-if="config.im_link.app_secret==='******'" class="text-warning small mt-1">App Secret 已脱敏，留空则保留原值</div>
       </div></div>
 
       <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">插件配置</h6></div><div class="card-body">

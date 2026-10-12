@@ -138,6 +138,11 @@ class AgentSession:
             self.store.save_session(s)
         except Exception as exc:  # noqa: BLE001
             print(f"[agent] 持久化失败: {exc}")
+        if self.manager is not None:
+            try:
+                self.manager.notify_session(self)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[agent] 广播失败: {exc}")
 
     # ---------- 主循环 ----------
     def nudge(self) -> None:

@@ -210,14 +210,14 @@ class PluginRuntime:
         config: Dict[str, Any],
         cwd: str,
         task_manager=None,
-        message_source=None,
+        im_link=None,
         model_provider: Optional[Callable[[Optional[str]], Any]] = None,
     ):
         self.plugins = load_plugins(plugins_dir)
         self.config = config or {}
         self.cwd = cwd
         self.task_manager = task_manager
-        self.message_source = message_source
+        self.im_link = im_link
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.pending: Dict[str, PendingApproval] = {}
         self.last_overflow_result: Optional[str] = None
@@ -332,9 +332,9 @@ class PluginRuntime:
             pa.task_id = task_id
         else:
             task_id = pa.uuid
-        if self.message_source is not None and getattr(self.message_source, "notify_approval", None):
+        if self.im_link is not None and getattr(self.im_link, "notify_approval", None):
             try:
-                self.message_source.notify_approval(pa)
+                self.im_link.notify_approval(pa)
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 审批通知失败: {exc}")
         return PluginResult({}, f"已提交后台人工审批（级别=HumanReview），任务标识={task_id}，等待人工批准后自动执行。")

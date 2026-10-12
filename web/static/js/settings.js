@@ -3,7 +3,7 @@ window.CASettings = {
     async loadSettings() {
       this.config = await (await this.api('/api/config')).json();
       this.config.approver = this.config.approver || {};
-      this.config.feishu = this.config.feishu || {};
+      this.config.im_link = this.config.im_link || {};
       this.pluginList = await (await this.api('/api/plugins')).json();
       const d = await (await this.api('/api/models')).json();
       this.models = d.models; this.activeModel = d.active;
@@ -18,7 +18,7 @@ window.CASettings = {
         max_rounds: this.config.max_rounds,
         approver: this.config.approver,
         summarizer: this.config.summarizer,
-        feishu: this.config.feishu,
+        im_link: this.config.im_link,
         plugins,
       };
       await this.api('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });

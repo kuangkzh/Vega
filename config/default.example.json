@@ -22,7 +22,8 @@
     "model": "gpt-4o",
     "prompt": "你是一名权限审批助手，请根据以下信息判断是否批准该工具调用。\n函数信息：{{plugin}}\n执行参数：{{args}}\n申请理由：{{reason}}\n只输出 JSON：{\"decision\":\"approve|reject|escalate\",\"reason\":\"...\"}"
   },
-  "feishu": {
+  "im_link": {
+    "type": "feishu",
     "app_id": "",
     "app_secret": "",
     "chat_id": ""
@@ -49,6 +50,6 @@
       }
     },
     "web_fetch": { "permission": { "default": "AgentReview" } },
-    "send_feishu": { "permission": { "default": "AgentReview" } }
+    "send_im": { "permission": { "default": "AgentReview" } }
   }
 }

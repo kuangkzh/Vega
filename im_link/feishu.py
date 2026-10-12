@@ -1,4 +1,4 @@
-"""飞书消息源：发送消息 + 长连接监听事件。"""
+"""飞书 IM 实现：发送消息 + 长连接监听事件。"""
 from __future__ import annotations
 
 import json
@@ -7,8 +7,10 @@ from typing import Any, Dict
 
 import lark_oapi as lark
 
+from im_link.base import ImLink
 
-class FeishuSource:
+
+class FeishuImLink(ImLink):
     def __init__(self, config: Dict[str, Any]):
         config = config or {}
         self.app_id = config.get("app_id") or ""
