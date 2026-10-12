@@ -32,7 +32,7 @@ class ChatSession:
     id: str
     created_at: float = 0.0
     updated_at: float = 0.0
-    status: str = "paused"  # paused | running
+    status: str = "paused"  # paused | running | complete | error
     token_usage: Dict[str, int] = field(default_factory=lambda: {"input": 0, "output": 0, "cache": 0})
 
     def to_dict(self) -> Dict[str, Any]:

@@ -3,13 +3,15 @@ window.CAChat = {
     messages: { handler() { this.scrollChat(); }, deep: true },
     streamText() { this.scrollChat(); },
     streamReasoning() { this.scrollChat(); },
-    pending: { handler() { this.scrollChat(); }, deep: true },
     tab(v) { if (v === 'chat') this.scrollChat(); },
   },
   computed: {
+    currentSession() {
+      if (!this.currentSid) return null;
+      return this.sessions.find(x => x.id === this.currentSid) || null;
+    },
     currentSessionTitle() {
-      if (!this.currentSid) return '会话列表';
-      const s = this.sessions.find(x => x.id === this.currentSid);
+      const s = this.currentSession;
       return s ? '会话：' + this.shortTitle(s.title) : '会话列表';
     },
   },
@@ -36,6 +38,10 @@ window.CAChat = {
       const s = (t || '').replace(/\s+/g, ' ').trim() || '新会话';
       return s.length > 24 ? s.slice(0, 24) + '…' : s;
     },
+    statusBadge(status) {
+      const map = { running: 'text-bg-success', paused: 'text-bg-secondary', complete: 'text-bg-primary', error: 'text-bg-danger' };
+      return map[status] || 'text-bg-secondary';
+    },
     formatArgs(s) {
       if (!s) return '';
       try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; }
@@ -49,7 +55,7 @@ window.CAChat = {
     async selectSession(sid) {
       this.sessionsOpen = false;
       this.closeStream();
-      this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
+      this.currentSid = sid; this.streamText = ''; this.streamReasoning = '';
       const s = this.sessions.find(x => x.id === sid);
       if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
       await this.loadMessages();
@@ -75,7 +81,6 @@ window.CAChat = {
         this.messages = [];
         this.streamText = '';
         this.streamReasoning = '';
-        this.pending = [];
         this.usage = null;
         this.closeStream();
       }
@@ -102,15 +107,10 @@ window.CAChat = {
       if (!this.inputText.trim() || !this.currentSid) return;
       const text = this.inputText.trim(); this.inputText = '';
       this.$nextTick(this.autoResize);
-      const mid = this.uid();
-      await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text, id: mid}) });
+      await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text}) });
       this.streamText = '';
       this.streamReasoning = '';
       if (!this.es) this.openStream();
-    },
-    uid() {
-      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
-      return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     },
     async resumeSession() {
       if (!this.currentSid) return;
@@ -127,9 +127,7 @@ window.CAChat = {
         const cur = this.sessions.find(x => x.id === sid);
         if (d.type === 'text') this.streamText += d.content;
         else if (d.type === 'reasoning') this.streamReasoning += d.content;
-        else if (d.type === 'queued') this.pending.push({ id: d.id, content: d.content });
         else if (d.type === 'message') {
-          if (d.id) this.pending = this.pending.filter(p => p.id !== d.id);
           this.messages.push(d.message);
           if (cur) cur.message_count = this.messages.length;
           if (d.message && d.message.role === 'assistant') { this.streamText = ''; this.streamReasoning = ''; }
@@ -140,8 +138,8 @@ window.CAChat = {
         }
         else if (d.type === 'status') {
           if (cur) cur.status = d.status;
-          if (d.status === 'paused') {
-            this.streamText = ''; this.streamReasoning = ''; this.pending = [];
+          if (d.status === 'paused' || d.status === 'complete' || d.status === 'error') {
+            this.streamText = ''; this.streamReasoning = '';
             this.loadMessages(); this.loadSessions();
           }
         }

@@ -114,22 +114,18 @@ class SessionManager:
             self.store.delete_messages(sid)
             self.store.delete_tasks_by_session(sid)
 
-    def send(self, sid: str, text: str, mid: Optional[str] = None) -> Optional[AgentSession]:
+    def send(self, sid: str, text: str) -> Optional[AgentSession]:
         sess = self.get(sid)
         if sess is None:
             return None
-        sess.send(text, mid)
+        sess.send(text)
         return sess
 
     def restart_after_compress(self, old: AgentSession, summary: str) -> None:
         new = self._make_session()
         self.store.append_message(new.id, {"role": "system", "content": f"[对话历史摘要]\n{summary}"})
         old.emit({"type": "restart", "old_id": old.id, "new_id": new.id})
-        while not old.queue.empty():
-            try:
-                new.queue.put(old.queue.get_nowait())
-            except Exception:  # noqa: BLE001
-                break
+        new.enqueue_many(old.drain_pending())
         old.stop()
         new.nudge()
 
@@ -184,7 +180,4 @@ class SessionManager:
         }
         content = format_tool_content(tool_name, payload, msg)
         tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content, "task_id": task.id}
-        self.store.append_message(session_id, tool_msg)
-        sess._persist()
-        sess.emit({"type": "message", "message": tool_msg})
-        sess.nudge()
+        sess.receive_tool_result(tool_msg)

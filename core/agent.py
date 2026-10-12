@@ -5,7 +5,6 @@ import json
 import queue
 import threading
 import time
-import uuid
 from typing import Any, Dict, List, Optional
 
 from core.config import build_model, resolve_prompt
@@ -14,7 +13,6 @@ from plugins.base import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
 
 _CONTEXT_KEYWORDS = ("context", "maximum context", "context length", "too long")
-_NUDGE = "__async_continue__"
 
 
 class AgentSession:
@@ -42,7 +40,8 @@ class AgentSession:
         self.updated_at = updated_at if updated_at is not None else self.created_at
         self.status = "paused"
         self.token_usage = dict(token_usage or {"input": 0, "output": 0, "cache": 0})
-        self.queue: "queue.Queue[Any]" = queue.Queue()
+        self._wake = threading.Event()
+        self._pending: List[Any] = []
         self._subscribers: set = set()
         self._lock = threading.RLock()
         self._stop = False
@@ -63,29 +62,50 @@ class AgentSession:
         self._thread = threading.Thread(target=self._worker, daemon=True, name=f"agent-{self.id}")
         self._thread.start()
 
-    def send(self, text: str, mid: Optional[str] = None) -> None:
-        mid = mid or uuid.uuid4().hex
-        self.emit({"type": "queued", "id": mid, "content": text})
-        self.queue.put((mid, text))
-        if not self._thread or not self._thread.is_alive():
+    def _ensure_started(self) -> None:
+        if not self.is_alive():
             self.start()
 
+    def _enqueue(self, item) -> None:
+        self._pending.append(item)
+        self._wake.set()
+
+    def enqueue_many(self, items) -> None:
+        if items:
+            self._pending.extend(items)
+            self._wake.set()
+
+    def drain_pending(self) -> List[Any]:
+        items: List[Any] = []
+        while True:
+            try:
+                items.append(self._pending.pop())
+            except IndexError:
+                return items
+
+    def send(self, text: str) -> None:
+        self._enqueue(("user", text))
+        self._ensure_started()
+
+    def receive_tool_result(self, msg: Dict[str, Any]) -> None:
+        """后台异步任务完成后的 tool 结果，交回统一队列处理。"""
+        self._enqueue(("tool", msg))
+        self._ensure_started()
+
     def resume(self) -> None:
-        if not self._thread or not self._thread.is_alive():
-            self.start()
-        self.status = "running"
-        self._persist()
-        self.emit({"type": "status", "status": "running"})
+        self._ensure_started()
+        self._pause_requested = False
+        if self.status == "running":
+            return
+        self._set_status("running")
+        self.nudge()
 
     def pause(self) -> None:
         self._pause_requested = True
 
     def stop(self) -> None:
         self._stop = True
-        try:
-            self.queue.put(None)
-        except Exception:  # noqa: BLE001
-            pass
+        self._wake.set()
 
     def is_alive(self) -> bool:
         return bool(self._thread) and self._thread.is_alive()
@@ -144,49 +164,50 @@ class AgentSession:
             except Exception as exc:  # noqa: BLE001
                 print(f"[agent] 广播失败: {exc}")
 
+    def _set_status(self, status: str) -> None:
+        self.status = status
+        self._persist()
+        self.emit({"type": "status", "status": status})
+
     # ---------- 主循环 ----------
     def nudge(self) -> None:
-        """异步结果已追加后，唤醒模型继续处理。"""
-        self.queue.put(_NUDGE)
-        if not self.is_alive():
-            self.start()
+        """Resume / 异步结果已回填：唤醒 loop 继续推理（不追加新消息）。"""
+        self._enqueue(("continue",))
+        self._ensure_started()
 
     def _worker(self) -> None:
         while not self._stop:
-            item = self.queue.get()
-            if item is None:
+            self._wake.wait()
+            self._wake.clear()
+            if self._stop:
                 break
-            self.status = "running"
-            self._persist()
-            self.emit({"type": "status", "status": "running"})
+            items = self.drain_pending()
+            if not items:
+                continue
+            self._set_status("running")
             try:
-                if item == _NUDGE:
+                for item in items:
+                    self._append(item)
+                if not self._maybe_compress():
                     self._model_loop()
-                else:
-                    mid, text = item
-                    self._run(mid, text)
             except Exception as exc:  # noqa: BLE001
                 self._append_error(f"[运行出错] {type(exc).__name__}: {exc}")
-            while not self._stop and not self.queue.empty():
-                nxt = self.queue.get()
-                if nxt is None:
-                    break
-                if nxt == _NUDGE:
-                    self._model_loop()
-                else:
-                    mid, text = nxt
-                    self._run(mid, text)
-            self.status = "paused"
-            self._persist()
-            self.emit({"type": "status", "status": "paused"})
+            if self.status == "running":
+                self._set_status("paused")
 
-    def _run(self, mid: str, text: str) -> None:
-        self.store.append_message(self.id, {"role": "user", "content": text})
-        self._persist()
-        self.emit({"type": "message", "id": mid, "message": {"role": "user", "content": text}})
-        if self._maybe_compress():
-            return  # 已触发压缩重启，本轮结束
-        self._model_loop()
+    def _append(self, item) -> None:
+        """把队列事件对应的消息追加进上下文；continue 不追加。"""
+        kind = item[0]
+        if kind == "user":
+            _, text = item
+            self.store.append_message(self.id, {"role": "user", "content": text})
+            self._persist()
+            self.emit({"type": "message", "message": {"role": "user", "content": text}})
+        elif kind == "tool":
+            msg = item[1]
+            self.store.append_message(self.id, msg)
+            self._persist()
+            self.emit({"type": "message", "message": msg})
 
     def _model_loop(self) -> None:
         self._pause_requested = False
@@ -200,6 +221,8 @@ class AgentSession:
             if self._stop or self._pause_requested:
                 break
             if not tool_calls:
+                if self.status == "running":
+                    self._set_status("complete")
                 break
             for tc in tool_calls:
                 if self._stop or self._pause_requested:
@@ -285,9 +308,11 @@ class AgentSession:
             tool_msg["task_id"] = res.result["task_id"]
         self.store.append_message(self.id, tool_msg)
         self.emit({"type": "message", "message": tool_msg})
-        self._persist()
         if name == "wait_for_new_instruction":
             self._pause_requested = True
+            self._set_status("complete")
+        else:
+            self._persist()
 
     def _add_usage(self, usage: TokenUsage) -> None:
         # 记录最近一次调用的用量：input 即当前完整上下文规模，供前端进度条展示；
@@ -302,7 +327,7 @@ class AgentSession:
         msg = {"role": "error", "content": text}
         self.store.append_message(self.id, msg)
         self.emit({"type": "message", "message": msg})
-        self._persist()
+        self._set_status("error")
 
     # ---------- 上下文压缩 ----------
     def _maybe_compress(self) -> bool:
