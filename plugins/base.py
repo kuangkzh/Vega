@@ -250,7 +250,7 @@ class PluginRuntime:
             self.pending[uid] = pa
         return PluginResult(
             {},
-            f'该操作需要审批（级别={level}）。审批 uuid={uid}。请调用 request_approval 插件发起审批：'
+            f'该插件的执行被拦截，需审批后执行。请调用 request_approval 插件发起审批，审批通过后会自动执行：'
             f'uuid="{uid}"、task_name=任务名、reason=申请理由。',
         )
 
@@ -274,7 +274,7 @@ class PluginRuntime:
             return
         self.last_overflow_result = text
         res.result = text[:MAX_RESULT_LEN]
-        hint = "结果过长已截断，完整结果已存为「上一次超长结果」，可用 get_last_overflow_result 插件按行/关键词检索。"
+        hint = "结果过长已截断，完整结果已暂存，可用 get_last_overflow_result 插件按行/关键词检索。"
         res.msg = hint if not res.msg else f"{res.msg}\n{hint}"
 
     # ---------- 审批 ----------
