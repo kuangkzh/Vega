@@ -5,7 +5,7 @@ window.CAState = {
       sessions: [], currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '',
       inputText: '', usage: null, maxContext: 0, es: null, globalEs: null, sessionsOpen: false,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false, mdPreview: false,
-      fileDiff: null,
+      fileDiff: null, diffDetail: null,
       gitCurrent: '', gitErr: '',
       gitBranchList: [], gitStatusList: [], gitLogList: [], gitStatusMap: {},
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,

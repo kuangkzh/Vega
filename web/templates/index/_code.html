@@ -30,4 +30,28 @@
       </div></div>
     </div>
   </div>
+
+  <div v-if="diffDetail" class="diff-popover-backdrop" @click.self="closeDiffDetail">
+    <div class="diff-popover" ref="diffPopover" :style="{ top: diffDetail.top + 'px', left: diffDetail.left + 'px', width: diffDetail.width + 'px' }" @click.stop>
+      <div class="diff-popover-sec">
+        <div class="diff-popover-label text-danger">- 改动前（HEAD）</div>
+        <div class="diff-view diff-view-old">
+          <div v-for="(l, i) in diffDetail.oldLines" :key="'o' + i" class="diff-line">
+            <span class="diff-ln">[[ l.no ]]</span><span class="diff-content">- [[ l.text ]]</span>
+          </div>
+          <div v-if="!diffDetail.oldLines.length" class="diff-empty">（无）</div>
+        </div>
+      </div>
+      <div class="diff-popover-sec">
+        <div class="diff-popover-label text-success">+ 改动后（当前）</div>
+        <div class="diff-view diff-view-new">
+          <div v-for="(l, i) in diffDetail.newLines" :key="'n' + i" class="diff-line">
+            <span class="diff-ln">[[ l.no ]]</span><span class="diff-content">+ [[ l.text ]]</span>
+          </div>
+          <div v-if="!diffDetail.newLines.length" class="diff-empty">（无）</div>
+        </div>
+      </div>
+      <div class="diff-popover-close" @click="closeDiffDetail" title="关闭">✕</div>
+    </div>
+  </div>
 </div>

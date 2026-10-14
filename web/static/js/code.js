@@ -169,29 +169,83 @@ window.CACode = {
       if (!this.cm || !this.fileDiff) return;
       const d = this.fileDiff;
       const diffLines = d.lines || [];
-      for (let i = 0; i < diffLines.length && i < this.cm.lineCount(); i++) {
+      const lineCount = this.cm.lineCount();
+      const byLine = {};
+      for (const h of (d.hunks || [])) {
+        if (h.type === 'delete') {
+          const a = h.anchor < lineCount ? h.anchor : lineCount - 1;
+          if (a >= 0) byLine[a] = h;
+        } else {
+          for (let n = h.newStart; n < h.newEnd && n < lineCount; n++) byLine[n] = h;
+        }
+      }
+      this._diffHunksByLine = byLine;
+      for (let i = 0; i < diffLines.length && i < lineCount; i++) {
         const type = diffLines[i];
         if (type === 'added') {
           this.cm.addLineClass(i, 'background', 'cm-diff-added');
-          this.cm.setGutterMarker(i, 'cm-diff-gutter', this._gutterMarker('+', 'cm-diff-added'));
+          this.cm.setGutterMarker(i, 'cm-diff-gutter', this._gutterMarker('+', 'cm-diff-added', i));
         } else if (type === 'modified') {
           this.cm.addLineClass(i, 'background', 'cm-diff-modified');
-          this.cm.setGutterMarker(i, 'cm-diff-gutter', this._gutterMarker('~', 'cm-diff-modified'));
+          this.cm.setGutterMarker(i, 'cm-diff-gutter', this._gutterMarker('~', 'cm-diff-modified', i));
         }
       }
       for (const del of (d.deleted || [])) {
         let anchor = del.anchorNewNo;
-        if (anchor >= this.cm.lineCount()) anchor = this.cm.lineCount() - 1;
+        if (anchor >= lineCount) anchor = lineCount - 1;
         if (anchor < 0) continue;
-        this.cm.setGutterMarker(anchor, 'cm-diff-gutter', this._gutterMarker('-', 'cm-diff-deleted'));
+        this.cm.setGutterMarker(anchor, 'cm-diff-gutter', this._gutterMarker('-', 'cm-diff-deleted', anchor));
       }
     },
-    _gutterMarker(text, cls) {
+    _gutterMarker(text, cls, lineNo) {
       const el = document.createElement('span');
       el.textContent = text;
       el.className = cls;
+      if (lineNo !== undefined) {
+        el.style.cursor = 'pointer';
+        el.title = '点击查看改动前对比';
+        el.addEventListener('click', () => this.showDiffDetail(lineNo));
+      }
       return el;
     },
+    showDiffDetail(lineNo) {
+      const hunk = this._diffHunksByLine ? this._diffHunksByLine[lineNo] : null;
+      if (!hunk || !this.fileDiff) return;
+      const headLines = this.fileDiff.headLines || [];
+      const curLines = (this.cm ? this.cm.getValue() : this.fileContent).split('\n');
+      const head = headLines.slice(hunk.headStart, hunk.headEnd);
+      const neu = curLines.slice(hunk.newStart, hunk.newEnd);
+      let top = 0, left = 0, width = 520;
+      if (this.cm) {
+        const c = this.cm.charCoords({ line: lineNo, ch: 0 }, 'window');
+        top = c.bottom;
+        left = c.left;
+        width = this.cm.getWrapperElement().getBoundingClientRect().width;
+      }
+      this.diffDetail = {
+        type: hunk.type,
+        oldLines: head.map((t, i) => ({ no: hunk.headStart + i + 1, text: t })),
+        newLines: neu.map((t, i) => ({ no: hunk.newStart + i + 1, text: t })),
+        top, left, width, anchorBottom: top,
+      };
+      this.$nextTick(() => this.fitDiffPopover());
+    },
+    fitDiffPopover() {
+      const d = this.diffDetail;
+      const el = this.$refs.diffPopover;
+      if (!d || !el) return;
+      const rect = el.getBoundingClientRect();
+      const margin = 8;
+      if (d.anchorBottom + rect.height > window.innerHeight - margin) {
+        // 下方放不下，翻到锚点行上方
+        d.top = d.anchorBottom - rect.height - (this.cm ? this.cm.defaultTextHeight() : 16);
+        if (d.top < margin) d.top = margin;
+      }
+      if (d.left + rect.width > window.innerWidth - margin) {
+        d.left = Math.max(margin, window.innerWidth - rect.width - margin);
+      }
+    },
+    closeDiffDetail() { this.diffDetail = null; },
     resizeEditor() {
       if (!this.cm) return;
       const lh = this.cm.defaultTextHeight() || 16;

@@ -24,10 +24,11 @@ def _safe_path(cwd: str, path: str) -> str:
 
 
 def _diff_lines(head_content: str, work_content: str) -> dict:
-    """对比 HEAD 版本与工作区版本，返回逐行标记与删除行信息。
+    """对比 HEAD 版本与工作区版本，返回逐行标记、删除行与差异段信息。
 
     lines: 与工作区每行一一对应（0-based），值为 None / 'added' / 'modified'。
     deleted: 工作区已不存在的删除行，anchorNewNo 指向删除处的「新文件行号」。
+    hunks: 差异段区间（自动跳过 equal），anchor 为段落在新文件中可点击定位的行号。
     """
     head_lines = head_content.split("\n") if head_content else []
     work_lines = work_content.split("\n") if work_content else []
@@ -35,13 +36,20 @@ def _diff_lines(head_content: str, work_content: str) -> dict:
 
     lines = [None] * len(work_lines)
     deleted = []
+    hunks = []
     new_idx = 0
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == "equal":
             new_idx = j2
-        elif tag == "insert":
+            continue
+        hunks.append({
+            "type": tag,
+            "headStart": i1, "headEnd": i2,
+            "newStart": j1, "newEnd": j2,
+            "anchor": new_idx if tag == "delete" else j1,
+        })
+        if tag == "insert":
             lines[j1:j2] = ["added"] * (j2 - j1)
-            new_idx = j2
         elif tag == "delete":
             for i in range(i1, i2):
                 deleted.append({"headNo": i, "anchorNewNo": new_idx, "text": head_lines[i]})
@@ -49,8 +57,8 @@ def _diff_lines(head_content: str, work_content: str) -> dict:
             for i in range(i1, i2):
                 deleted.append({"headNo": i, "anchorNewNo": new_idx, "text": head_lines[i]})
             lines[j1:j2] = ["modified"] * (j2 - j1)
-            new_idx = j2
-    return {"lines": lines, "deleted": deleted}
+        new_idx = j2
+    return {"lines": lines, "deleted": deleted, "hunks": hunks}
 
 
 def build_bp(cwd: str) -> Blueprint:
@@ -131,7 +139,7 @@ def build_bp(cwd: str) -> Blueprint:
 
         # 二进制文件无「行」，不做行级 diff
         if "\0" in content:
-            return jsonify({"path": os.path.relpath(target, cwd), "binary": True, "lines": [], "deleted": []})
+            return jsonify({"path": os.path.relpath(target, cwd), "binary": True, "lines": [], "deleted": [], "hunks": [], "headLines": []})
 
         git_path = rel.replace(os.sep, "/")
         head_res = _git(["show", f"HEAD:{git_path}"])
@@ -144,6 +152,8 @@ def build_bp(cwd: str) -> Blueprint:
             "tracked": tracked,
             "lines": diff["lines"],
             "deleted": diff["deleted"],
+            "hunks": diff["hunks"],
+            "headLines": head.split("\n") if head else [],
         })
 
     @bp.get("/api/git/branches")

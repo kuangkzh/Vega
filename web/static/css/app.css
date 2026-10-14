@@ -368,3 +368,69 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .CodeMirror-gutter-elt .cm-diff-deleted { color: var(--app-danger); font-weight: 700; }
 .CodeMirror-linebackground.cm-diff-added { background: rgba(113, 166, 119, 0.15); }
 .CodeMirror-linebackground.cm-diff-modified { background: rgba(201, 160, 92, 0.18); }
+
+/* ===== Code 页：差异对比弹窗（仿 VS Code，跟随所在行）===== */
+.diff-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+}
+.diff-popover {
+  position: fixed;
+  z-index: 1041;
+  max-width: calc(100vw - 24px);
+  max-height: 360px;
+  overflow: auto;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 8px 10px;
+}
+.diff-popover-sec + .diff-popover-sec { margin-top: 8px; }
+.diff-popover-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+.diff-popover-close {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  cursor: pointer;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+.diff-popover-close:hover { color: var(--app-text); }
+
+.diff-view {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  margin: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.diff-view-old { background: rgba(200, 30, 30, 0.06); color: var(--app-danger); }
+.diff-view-new { background: rgba(113, 166, 119, 0.08); color: var(--app-success); }
+.diff-line { display: flex; align-items: baseline; padding: 1px 8px; }
+.diff-ln {
+  flex: 0 0 auto;
+  min-width: 3em;
+  text-align: right;
+  padding-right: 8px;
+  margin-right: 8px;
+  border-right: 1px solid var(--app-border);
+  color: var(--app-text-muted);
+  opacity: 0.7;
+  user-select: none;
+}
+.diff-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.diff-empty { padding: 2px 8px; color: var(--app-text-muted); font-style: italic; }
