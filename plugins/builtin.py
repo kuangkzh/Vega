@@ -7,6 +7,7 @@ import shutil
 import subprocess
 
 import requests
+import html2text
 
 from plugins.base import PluginResult, register_plugin
 
@@ -263,16 +264,27 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
     description="获取指定 URL 的内容",
     parameters={
         "type": "object",
-        "properties": {"url": {"type": "string", "description": "要获取的 URL"}},
+        "properties": {
+            "url": {"type": "string", "description": "要获取的 URL"},
+            "mode": {"type": "string", "description": "返回格式：raw（默认，原始HTML）或 markdown（转为Markdown）"},
+        },
         "required": ["url"],
     },
 )
-def web_fetch(ctx, url: str):
+def web_fetch(ctx, url: str, mode: str = "raw"):
     try:
         resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"请求失败: {exc}")
-    return PluginResult({"status_code": resp.status_code, "content": resp.text}, f"HTTP {resp.status_code}")
+
+    if str(mode).lower() == "markdown":
+        converter = html2text.HTML2Text()
+        converter.body_width = 0
+        content = converter.handle(resp.text)
+    else:
+        content = resp.text
+
+    return PluginResult({"status_code": resp.status_code, "content": content}, f"HTTP {resp.status_code}")
 
 
 @register_plugin(
