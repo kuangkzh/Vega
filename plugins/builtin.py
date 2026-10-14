@@ -90,22 +90,23 @@ def _parse_lines_spec(spec: str) -> set:
     return indexes
 
 
-def filter_text_lines(text: str, lines_spec: str = "", keyword: str = ""):
-    """统一的文本行筛选：按行号区间 + 关键词（与关系）筛选，返回 (文本, 命中行数, 总行数)。
+def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
+    """统一的文本行筛选：按行号区间 + 正则表达式（与关系）筛选，返回 (文本, 命中行数, 总行数)。
 
     - lines_spec：形如 "0-4,6,8,11-20"（闭区间、0 起算），可空表示全量。
-    - keyword：命中才保留的行内子串；同时提供行号与关键词时按与关系过滤。
-    - 越界行号静默取交集，不报错。
+    - regexp：命中才保留的正则表达式；同时提供行号与正则时按与关系过滤。
+    - 越界行号静默取交集，不报错；正则无效时抛出 re.error。
     """
     lines = (text or "").split("\n")
     total = len(lines)
     indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
+    pattern = re.compile(str(regexp or "")) if str(regexp or "").strip() else None
     out: list = []
     matched = 0
     for i, ln in enumerate(lines):
         if indexes is not None and i not in indexes:
             continue
-        if keyword and keyword not in ln:
+        if pattern is not None and not pattern.search(ln):
             continue
         matched += 1
         out.append(f"{i}: {ln.rstrip(chr(10))}")
@@ -113,21 +114,21 @@ def filter_text_lines(text: str, lines_spec: str = "", keyword: str = ""):
 
 
 @register_plugin(
-    description="获取上一次超长结果（可按行号区间或关键词筛选）",
+    description="获取上一次超长结果（可按行号区间或正则筛选）",
     parameters={
         "type": "object",
         "properties": {
             "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
-            "keyword": {"type": "string", "description": "只返回包含该关键词的行；同时给行号时按与关系再过滤"},
+            "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
         },
     },
 )
-def get_last_overflow_result(ctx, lines: str = "", keyword: str = ""):
+def get_last_overflow_result(ctx, lines: str = "", regexp: str = ""):
     text = ctx.runtime.last_overflow_result
     if not text:
         return PluginResult({}, "当前没有「上一次超长结果」可查。")
     try:
-        picked, matched, total = filter_text_lines(text, lines, keyword)
+        picked, matched, total = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
         return PluginResult({}, str(exc))
     return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）")
@@ -184,20 +185,20 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
 
 
 @register_plugin(
-    description="读入一个文件的内容（可按行号区间或关键词筛选，返回附行号）",
+    description="读入一个文件的内容（可按行号区间或正则筛选，返回附行号）",
     parameters={
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
             "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
-            "keyword": {"type": "string", "description": "只返回包含该关键词的行；同时给行号时按与关系再过滤"},
+            "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
         },
         "required": ["path"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
     resolve_permission=file_permission,
 )
-def read_file(ctx, path: str, lines: str = "", keyword: str = ""):
+def read_file(ctx, path: str, lines: str = "", regexp: str = ""):
     p = _abs(ctx.cwd, str(path or ""))
     try:
         with open(p, "r", encoding="utf-8", errors="replace") as f:
@@ -205,7 +206,7 @@ def read_file(ctx, path: str, lines: str = "", keyword: str = ""):
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
     try:
-        picked, matched, total = filter_text_lines(text, lines, keyword)
+        picked, matched, total = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
         return PluginResult({}, str(exc))
     return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行")
