@@ -211,22 +211,22 @@ def read_file(ctx, path: str, lines: str = "", keyword: str = ""):
 
 
 @register_plugin(
-    description="修改文件：按行号替换，或 search/replace 块替换",
+    description="修改文件：search/replace（text 或 regexp 模式，可指定起始搜索行）",
     parameters={
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
-            "line": {"type": "integer", "description": "要替换的行号（0 起算）"},
-            "content": {"type": "string", "description": "整行替换时的新内容"},
-            "search": {"type": "string", "description": "search/replace 模式的查找串"},
-            "replace": {"type": "string", "description": "search/replace 模式的替换串"},
+            "search": {"type": "string", "description": "查找串（text 模式为字面文本，regexp 模式为正则）"},
+            "replace": {"type": "string", "description": "替换串（字面文本）"},
+            "start_line": {"type": "integer", "description": "起始搜索行（0 起算，默认 0）"},
+            "mode": {"type": "string", "description": "匹配模式：text（默认）或 regexp"},
         },
-        "required": ["path"],
+        "required": ["path", "search"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
     resolve_permission=file_permission,
 )
-def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = "", replace: str = ""):
+def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: int = 0, mode: str = "text"):
     p = _abs(ctx.cwd, str(path or ""))
     try:
         with open(p, "r", encoding="utf-8") as f:
@@ -236,26 +236,27 @@ def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = ""
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
 
-    if search:
-        if search not in original:
-            return PluginResult({}, f"未找到: {search}")
-        new_content = original.replace(search, replace)
-    elif line:
-        lines = original.split("\n")
-        ln = int(line)
-        if ln < 0 or ln >= len(lines):
-            return PluginResult({}, f"行号越界: {ln}（共{len(lines)}行，0 起算）")
-        lines[ln] = content
-        new_content = "\n".join(lines)
-    else:
-        return PluginResult({}, "需提供 line 或 search 参数")
+    pattern_src = re.escape(search) if str(mode) != "regexp" else search
+    try:
+        pattern = re.compile(pattern_src)
+    except re.error as exc:
+        return PluginResult({}, f"正则无效: {exc}")
+
+    start = int(start_line or 0)
+    offset = sum(len(ln) + 1 for ln in original.split("\n")[:start])
+    matches = list(pattern.finditer(original, offset))
+    if not matches:
+        return PluginResult({}, f"未找到: {search}")
+
+    first = matches[0]
+    new_content = original[:first.start()] + replace + original[first.end():]
 
     try:
         with open(p, "w", encoding="utf-8") as f:
             f.write(new_content)
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"写入失败: {exc}")
-    return PluginResult({"changed": True, "path": p}, "已保存修改")
+    return PluginResult({"changed": True, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）")
 
 
 @register_plugin(
