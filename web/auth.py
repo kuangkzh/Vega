@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from functools import wraps
 
-from flask import jsonify, session
+from flask import Blueprint, jsonify, render_template, request, session
 
 
 class Auth:
@@ -38,3 +38,30 @@ def login_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
+
+
+def build_bp(auth: Auth) -> Blueprint:
+    """页面 + 鉴权相关路由。"""
+    bp = Blueprint("auth", __name__)
+
+    @bp.get("/login")
+    def login_page():
+        return render_template("login.html")
+
+    @bp.post("/api/login")
+    def api_login():
+        data = request.get_json(force=True, silent=True) or {}
+        if auth.login(data.get("token", "")):
+            return jsonify({"ok": True})
+        return jsonify({"ok": False, "error": "token 错误"}), 401
+
+    @bp.post("/api/logout")
+    def api_logout():
+        auth.logout()
+        return jsonify({"ok": True})
+
+    @bp.get("/api/authed")
+    def api_authed():
+        return jsonify({"authed": auth.is_authed()})
+
+    return bp

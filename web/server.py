@@ -1,26 +1,14 @@
-"""Flask 控制台：JSON API + SSE + 页面渲染。"""
+"""Flask 控制台：装配层 + 页面渲染 + 任务/设置的 JSON API。"""
 from __future__ import annotations
 
 import gzip
 import json
-import os
-import queue
-import subprocess
-from typing import Any, Dict, List
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request
 
-from web.auth import Auth, login_required
-
-
-def _safe_path(cwd: str, path: str) -> str:
-    """拼接并限制在 cwd 内（防目录穿越）。"""
-    cwd_abs = os.path.abspath(cwd)
-    full = path if os.path.isabs(path) else os.path.join(cwd_abs, path)
-    full = os.path.abspath(full)
-    if os.path.commonpath([cwd_abs, full]) != cwd_abs:
-        raise ValueError("路径越界")
-    return full
+from web.auth import Auth, build_bp as build_auth_bp, login_required
+from web.code import build_bp as build_code_bp
+from web.sessions import build_bp as build_sessions_bp
 
 
 _GZIP_MIN_SIZE = 10 * 1024
@@ -56,125 +44,10 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
     def index():
         return render_template("index.html")
 
-    @app.get("/login")
-    def login_page():
-        return render_template("login.html")
-
-    # ---------- 鉴权 ----------
-    @app.post("/api/login")
-    def api_login():
-        data = request.get_json(force=True, silent=True) or {}
-        if auth.login(data.get("token", "")):
-            return jsonify({"ok": True})
-        return jsonify({"ok": False, "error": "token 错误"}), 401
-
-    @app.post("/api/logout")
-    def api_logout():
-        auth.logout()
-        return jsonify({"ok": True})
-
-    @app.get("/api/authed")
-    def api_authed():
-        return jsonify({"authed": auth.is_authed()})
-
-    # ---------- 会话 ----------
-    @app.get("/api/sessions")
-    @login_required
-    def api_sessions():
-        bound = manager.get_im_session_id()
-        return jsonify([{**s.to_dict(), "im_bound": s.id == bound} for s in manager.list()])
-
-    @app.post("/api/sessions")
-    @login_required
-    def api_create_session():
-        s = manager.create()
-        return jsonify(s.to_dict())
-
-    @app.post("/api/sessions/<sid>/fork")
-    @login_required
-    def api_fork(sid):
-        data = request.get_json(force=True, silent=True) or {}
-        message_index = data.get("message_index")
-        s = manager.fork(sid, message_index)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        return jsonify(s.to_dict())
-
-    @app.delete("/api/sessions/<sid>")
-    @login_required
-    def api_delete_session(sid):
-        manager.delete(sid)
-        return jsonify({"ok": True})
-
-    @app.get("/api/sessions/<sid>/messages")
-    @login_required
-    def api_messages(sid):
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        return jsonify(s.store.load_messages(s.id))
-
-    @app.get("/api/sessions/<sid>/pending")
-    @login_required
-    def api_pending(sid):
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        return jsonify(s.pending_items())
-
-    @app.post("/api/sessions/<sid>/message")
-    @login_required
-    def api_send(sid):
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        data = request.get_json(force=True, silent=True) or {}
-        text = data.get("content") or data.get("text") or ""
-        if not text:
-            return jsonify({"error": "empty content"}), 400
-        s.send(text)
-        return jsonify({"ok": True})
-
-    @app.post("/api/sessions/<sid>/resume")
-    @login_required
-    def api_resume(sid):
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        s.resume()
-        return jsonify({"ok": True})
-
-    @app.post("/api/sessions/<sid>/pause")
-    @login_required
-    def api_pause(sid):
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        s.pause()
-        return jsonify({"ok": True})
-
-    @app.post("/api/sessions/<sid>/im/toggle")
-    @login_required
-    def api_im_toggle(sid):
-        if manager.get(sid) is None:
-            return jsonify({"error": "not found"}), 404
-        bound = manager.toggle_im(sid)
-        return jsonify({"im_bound": bound, "im_session_id": manager.get_im_session_id()})
-
-    @app.get("/api/sessions/<sid>/stream")
-    def api_stream(sid):
-        if not auth.is_authed():
-            return jsonify({"error": "unauthorized"}), 401
-        s = manager.get(sid)
-        if s is None:
-            return jsonify({"error": "not found"}), 404
-        return _sse_stream(s)
-
-    @app.get("/api/events")
-    def api_events():
-        if not auth.is_authed():
-            return jsonify({"error": "unauthorized"}), 401
-        return _global_sse_stream(manager)
+    # ---------- 蓝图分区 ----------
+    app.register_blueprint(build_auth_bp(auth))
+    app.register_blueprint(build_sessions_bp(manager, auth))
+    app.register_blueprint(build_code_bp(cwd))
 
     # ---------- 后台任务 ----------
     @app.get("/api/tasks")
@@ -334,116 +207,4 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
                 return jsonify({"error": f"写回失败: {exc}"}), 500
         return jsonify({"ok": True})
 
-    # ---------- Code：文件浏览 ----------
-    @app.get("/api/browse")
-    @login_required
-    def api_browse():
-        rel = request.args.get("path") or "."
-        try:
-            target = _safe_path(cwd, rel)
-        except ValueError:
-            return jsonify({"error": "路径越界"}), 400
-        if not os.path.isdir(target):
-            return jsonify({"error": "不是目录"}), 400
-        try:
-            entries = [{"name": n, "is_dir": os.path.isdir(os.path.join(target, n))}
-                       for n in sorted(os.listdir(target))]
-        except Exception as exc:  # noqa: BLE001
-            return jsonify({"error": str(exc)}), 400
-        return jsonify({"path": os.path.relpath(target, cwd), "entries": entries})
-
-    @app.get("/api/file")
-    @login_required
-    def api_read_file():
-        rel = request.args.get("path") or ""
-        try:
-            target = _safe_path(cwd, rel)
-        except ValueError:
-            return jsonify({"error": "路径越界"}), 400
-        try:
-            with open(target, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-        except Exception as exc:  # noqa: BLE001
-            return jsonify({"error": str(exc)}), 400
-        return jsonify({"path": os.path.relpath(target, cwd), "content": content})
-
-    @app.post("/api/file")
-    @login_required
-    def api_write_file():
-        data = request.get_json(force=True, silent=True) or {}
-        rel = data.get("path") or ""
-        try:
-            target = _safe_path(cwd, rel)
-        except ValueError:
-            return jsonify({"error": "路径越界"}), 400
-        try:
-            with open(target, "w", encoding="utf-8") as f:
-                f.write(data.get("content") or "")
-        except Exception as exc:  # noqa: BLE001
-            return jsonify({"error": str(exc)}), 400
-        return jsonify({"ok": True})
-
-    # ---------- Git ----------
-    def _git(args):
-        try:
-            r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
-        except Exception as exc:  # noqa: BLE001
-            return {"error": str(exc)}
-        return {"out": r.stdout, "err": r.stderr, "code": r.returncode}
-
-    @app.get("/api/git/branches")
-    @login_required
-    def api_git_branches():
-        cur = _git(["rev-parse", "--abbrev-ref", "HEAD"])
-        brs = _git(["branch", "-a"])
-        return jsonify({"current": (cur.get("out") or "").strip(), "branches": brs.get("out") or ""})
-
-    @app.get("/api/git/log")
-    @login_required
-    def api_git_log():
-        return jsonify(_git(["log", "--graph", "--oneline", "--all", "-30"]))
-
-    @app.get("/api/git/status")
-    @login_required
-    def api_git_status():
-        return jsonify(_git(["status", "--short"]))
-
     return app
-
-
-def _sse_stream(sess) -> Response:
-    q = sess.subscribe()
-
-    def gen():
-        try:
-            yield "data: " + json.dumps({"type": "hello"}, ensure_ascii=False) + "\n\n"
-            while True:
-                try:
-                    ev = q.get(timeout=15)
-                except queue.Empty:
-                    yield ": keepalive\n\n"
-                    continue
-                yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
-        finally:
-            sess.unsubscribe(q)
-
-    return Response(gen(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
-
-
-def _global_sse_stream(manager) -> Response:
-    q = manager.subscribe_global()
-
-    def gen():
-        try:
-            yield "data: " + json.dumps({"type": "hello"}, ensure_ascii=False) + "\n\n"
-            while True:
-                try:
-                    ev = q.get(timeout=15)
-                except queue.Empty:
-                    yield ": keepalive\n\n"
-                    continue
-                yield "data: " + json.dumps(ev, ensure_ascii=False) + "\n\n"
-        finally:
-            manager.unsubscribe_global(q)
-
-    return Response(gen(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
