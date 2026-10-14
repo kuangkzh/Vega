@@ -344,3 +344,27 @@ pre { white-space: pre-wrap; font-size: 12px; }
   max-height: 80vh;
   overflow-y: auto;
 }
+
+/* ===== Code 页：git 差异状态徽章 ===== */
+.git-diff-badge {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.git-badge-added { background: var(--app-success); color: #fff; }
+.git-badge-modified { background: var(--app-warning); color: #fff; }
+.git-badge-deleted { background: var(--app-danger); color: #fff; }
+.git-badge-renamed { background: var(--app-accent); color: #fff; }
+
+/* ===== Code 页：编辑器行内 diff 标记 ===== */
+.cm-diff-gutter { width: 16px; }
+.cm-diff-gutter .CodeMirror-gutter-elt { padding-left: 3px; }
+.CodeMirror-gutter-elt .cm-diff-added { color: var(--app-success); font-weight: 700; }
+.CodeMirror-gutter-elt .cm-diff-modified { color: var(--app-warning); font-weight: 700; }
+.CodeMirror-gutter-elt .cm-diff-deleted { color: var(--app-danger); font-weight: 700; }
+.CodeMirror-linebackground.cm-diff-added { background: rgba(113, 166, 119, 0.15); }
+.CodeMirror-linebackground.cm-diff-modified { background: rgba(201, 160, 92, 0.18); }

@@ -7,10 +7,11 @@
     <div class="code-sidebar d-md-flex" :class="{ 'is-open': codeBrowseOpen }">
       <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
       <ul class="list-group code-file-list">
-        <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1">
-          <a href="#" class="text-decoration-none" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
+        <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center">
+          <a href="#" class="text-decoration-none flex-grow-1 text-truncate" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
             [[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]
           </a>
+          <span v-if="e.statusLetters" class="git-diff-badge ms-1" :class="e.statusCls">[[ e.statusLetters ]]</span>
         </li>
       </ul>
     </div>
