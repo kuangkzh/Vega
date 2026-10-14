@@ -9,7 +9,7 @@ import subprocess
 import requests
 import html2text
 
-from plugins.base import PluginResult, register_plugin
+from plugins.runtime import PluginResult, register_plugin
 
 
 def _abs(cwd: str, path: str) -> str:

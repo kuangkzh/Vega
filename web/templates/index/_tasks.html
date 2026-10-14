@@ -20,8 +20,7 @@
         <td>[[ t.status ]]</td>
         <td>
           <button class="btn btn-sm btn-outline-secondary" @click="openTask(t.id)">详情</button>
-          <button v-if="t.status==='pending_approval'" class="btn btn-sm btn-success" @click="approveTask(t.id, true)">通过</button>
-          <button v-if="t.status==='pending_approval'" class="btn btn-sm btn-danger" @click="approveTask(t.id, false)">拒绝</button>
+          <button v-if="t.status==='pending_approval'" class="btn btn-sm btn-warning" @click="openTask(t.id)">审批</button>
         </td>
       </tr>
     </tbody>

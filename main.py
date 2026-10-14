@@ -9,7 +9,7 @@ from core.session_manager import SessionManager
 from core.task_manager import TaskManager
 from im_link.base import build_im_link
 from models.openai import OpenAIModel
-from plugins.base import PluginRuntime
+from plugins.runtime import PluginRuntime
 from storage.store import Store
 from web.server import create_app
 

@@ -8,7 +8,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from core.agent import AgentSession
-from plugins.base import format_tool_content
+from plugins.runtime import format_tool_content
 
 
 class SessionManager:

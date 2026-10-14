@@ -22,8 +22,11 @@
         </template>
       </div>
       <div class="modal-footer">
-        <button v-if="taskDetail.status==='pending_approval'" class="btn btn-sm btn-success" @click="approveTask(taskDetail.id, true)">通过</button>
-        <button v-if="taskDetail.status==='pending_approval'" class="btn btn-sm btn-danger" @click="approveTask(taskDetail.id, false)">拒绝</button>
+        <template v-if="taskDetail.status==='pending_approval'">
+          <input v-model="approvalReason" class="form-control form-control-sm" placeholder="审批意见（拒绝时必填）">
+          <button class="btn btn-sm btn-success" @click="approveTask(taskDetail.id, true)">通过</button>
+          <button class="btn btn-sm btn-danger" @click="approveTask(taskDetail.id, false)">拒绝</button>
+        </template>
         <button class="btn btn-sm btn-outline-secondary" @click="openTask(taskDetail.id)">刷新</button>
         <button class="btn btn-sm btn-secondary" @click="closeTask">关闭</button>
       </div>

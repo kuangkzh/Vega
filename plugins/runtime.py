@@ -28,18 +28,30 @@ class PluginResult:
 
 
 @dataclass
+class ApprovalStep:
+    """单级审批结论：level=agent|human；decision=approve|reject|escalate（escalate 仅 agent 级）。"""
+
+    level: str
+    decision: str
+    comment: str = ""
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"level": self.level, "decision": self.decision, "comment": self.comment}
+
+
+@dataclass
 class PendingApproval:
     uuid: str
     plugin_name: str
     args: Dict[str, Any]
     level: str
     session_id: Optional[str] = None
-    reason: str = ""
+    request_reason: str = ""
     task_name: str = ""
     task_id: Optional[str] = None
     event: Any = field(default_factory=threading.Event)
-    approved: bool = False
-    decision_reason: str = ""
+    steps: List["ApprovalStep"] = field(default_factory=list)
+    status: str = "pending"  # pending_agent | pending_human | approved | rejected
 
 
 _REGISTRY: Dict[str, "Plugin"] = {}
@@ -129,7 +141,7 @@ def load_plugins(plugins_dir: str) -> Dict[str, "Plugin"]:
 
     if plugins_dir and os.path.isdir(plugins_dir):
         for fn in sorted(os.listdir(plugins_dir)):
-            if not fn.endswith(".py") or fn.startswith("_") or fn in ("base.py", "builtin.py"):
+            if not fn.endswith(".py") or fn.startswith("_") or fn in ("runtime.py", "builtin.py"):
                 continue
             path = os.path.join(plugins_dir, fn)
             mod_name = f"ca_plugin_{fn[:-3]}"
@@ -243,9 +255,10 @@ class PluginRuntime:
         if level == "Denied":
             return PluginResult({}, f"插件 {plugin_name} 被禁止使用 (Denied)")
         if level == "Trusted":
-            return self._run_and_wrap(plugin, args, session_id)
+            return self._invoke_plugin(plugin, args, session_id)
         uid = uuid.uuid4().hex
-        pa = PendingApproval(uuid=uid, plugin_name=plugin_name, args=args, level=level, session_id=session_id)
+        status = "pending_agent" if level == "AgentReview" else "pending_human"
+        pa = PendingApproval(uuid=uid, plugin_name=plugin_name, args=args, level=level, session_id=session_id, status=status)
         with self._lock:
             self.pending[uid] = pa
         return PluginResult(
@@ -254,7 +267,7 @@ class PluginRuntime:
             f'uuid="{uid}"、task_name=任务名、reason=申请理由。',
         )
 
-    def _run_and_wrap(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
+    def _invoke_plugin(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
         ctx = PluginContext(cwd=self.cwd, config=self.plugin_config(plugin.name), runtime=self, session_id=session_id)
         try:
             kwargs = {k: v for k, v in args.items() if k in plugin.arg_names}
@@ -278,27 +291,43 @@ class PluginRuntime:
         res.msg = hint if not res.msg else f"{res.msg}\n{hint}"
 
     # ---------- 审批 ----------
+    @staticmethod
+    def _approval_snapshot(pa: PendingApproval, status: str = "") -> Dict[str, Any]:
+        """审批进度的结构化快照，供回传给模型。"""
+        return {
+            "status": status or pa.status,
+            "steps": [s.to_dict() for s in pa.steps],
+            "task_id": pa.task_id,
+        }
+
     def request_approval(self, uuid_: str, task_name: str, reason: str, session_id: Optional[str] = None) -> PluginResult:
         with self._lock:
             pa = self.pending.get(uuid_)
         if pa is None:
             return PluginResult({}, f"找不到审批申请 uuid={uuid_}，可能已过期或被处理")
-        pa.reason = reason or ""
+        pa.request_reason = reason or ""
         pa.task_name = task_name or pa.plugin_name
         if pa.session_id is None:
             pa.session_id = session_id
+
         if pa.level == "AgentReview":
-            decision = self._run_approver(pa)
+            decision, advice = self._run_agent_approval(pa)
+            pa.steps.append(ApprovalStep("agent", decision, advice))
             if decision == "approve":
                 with self._lock:
                     self.pending.pop(uuid_, None)
+                pa.status = "approved"
                 plugin = self.plugins.get(pa.plugin_name)
-                return self._run_and_wrap(plugin, pa.args, pa.session_id)
+                return self._invoke_plugin(plugin, pa.args, pa.session_id)
             if decision == "reject":
                 with self._lock:
                     self.pending.pop(uuid_, None)
-                return PluginResult({}, f"审批被拒绝：{reason}")
+                pa.status = "rejected"
+                return PluginResult(self._approval_snapshot(pa), f"审批被拒绝：{advice or '未说明理由'}")
+            pa.status = "pending_human"
             return self._start_human_approval(pa)
+
+        pa.status = "pending_human"
         return self._start_human_approval(pa)
 
     def approve(self, uuid_: str, approved: bool, reason: str = "") -> PluginResult:
@@ -306,8 +335,8 @@ class PluginRuntime:
             pa = self.pending.pop(uuid_, None)
         if pa is None:
             return PluginResult({}, f"找不到审批申请 uuid={uuid_}")
-        pa.approved = approved
-        pa.decision_reason = reason or ""
+        pa.steps.append(ApprovalStep("human", "approve" if approved else "reject", reason or ""))
+        pa.status = "approved" if approved else "rejected"
         pa.event.set()
         # 通过则把任务从 pending_approval 标记为 running，让 UI 及时过渡
         tm = self.task_manager
@@ -318,15 +347,15 @@ class PluginRuntime:
                 t.pending_approval = False
                 t.end_time = ""
                 tm.store.save_task(t)
-        return PluginResult({}, "审批通过，后台自动执行。" if approved else f"审批被拒绝：{reason}")
+        return PluginResult({}, "审批通过，后台自动执行。" if approved else f"审批被拒绝：{reason or '未说明理由'}")
 
     def _start_human_approval(self, pa: PendingApproval) -> PluginResult:
         tm = self.task_manager
-        params = {"uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args, "reason": pa.reason, "task_name": pa.task_name}
+        params = {"uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args, "reason": pa.request_reason, "task_name": pa.task_name}
         if tm is not None and getattr(tm, "submit", None):
             task_id = tm.submit(
                 pa.task_name or pa.plugin_name, pa.session_id,
-                target=lambda: self._approval_target(pa),
+                target=lambda: self._human_approval_target(pa),
                 params=params, tool_name=pa.plugin_name, pending=True,
             )
             pa.task_id = task_id
@@ -339,26 +368,28 @@ class PluginRuntime:
                 print(f"[plugin] 审批通知失败: {exc}")
         return PluginResult({}, f"已提交后台人工审批（级别=HumanReview），任务标识={task_id}，等待人工批准后自动执行。")
 
-    def _approval_target(self, pa: PendingApproval) -> PluginResult:
-        """人工审批的底层 target：阻塞等人工信号，通过则执行插件，否则返回拒绝。"""
+    def _human_approval_target(self, pa: PendingApproval) -> PluginResult:
+        """人工审批的目标函数体：阻塞等人工信号，通过则执行插件，否则返回拒绝。"""
         pa.event.wait()
-        if pa.approved:
+        if pa.status == "approved":
             plugin = self.plugins.get(pa.plugin_name)
             if plugin is None:
                 return PluginResult({}, f"未知插件: {pa.plugin_name}")
-            return self._run_and_wrap(plugin, pa.args, pa.session_id)
-        return PluginResult({}, f"审批被拒绝：{pa.decision_reason or '未说明理由'}")
+            return self._invoke_plugin(plugin, pa.args, pa.session_id)
+        human_step = next((s for s in pa.steps if s.level == "human"), None)
+        advice = human_step.comment if human_step else ""
+        return PluginResult(self._approval_snapshot(pa), f"审批被拒绝：{advice or '未说明理由'}")
 
-    def _run_approver(self, pa: PendingApproval) -> str:
+    def _run_agent_approval(self, pa: PendingApproval) -> tuple:
         approver = self.config.get("approver") or {}
         model = self.model_provider(approver.get("model"))
         if model is None:
-            return "escalate"
+            return "escalate", ""
         system = render_approver_prompt(
             resolve_prompt(approver.get("prompt")),
             self.plugins.get(pa.plugin_name),
             pa.args,
-            pa.reason,
+            pa.request_reason,
         )
         messages = [
             {"role": "system", "content": system},
@@ -372,9 +403,8 @@ class PluginRuntime:
             decision = str(data.get("decision") or "escalate").lower()
             if decision not in ("approve", "reject", "escalate"):
                 decision = "escalate"
-            if data.get("reason"):
-                pa.reason = str(data["reason"])
-            return decision
+            reason = str(data.get("reason") or "")
+            return decision, reason
         except Exception as exc:  # noqa: BLE001
             print(f"[plugin] 审批 Agent 调用失败，转人类审批: {exc}")
-            return "escalate"
+            return "escalate", ""

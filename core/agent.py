@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from core.config import build_model, resolve_prompt
 from core.context import estimate_tokens, render_prompt
-from plugins.base import format_tool_content
+from plugins.runtime import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
 
 _CONTEXT_KEYWORDS = ("context", "maximum context", "context length", "too long")
