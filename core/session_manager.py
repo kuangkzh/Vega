@@ -30,6 +30,7 @@ class SessionManager:
                 session_id=s.id, cwd=self.cwd, config=self.config,
                 runtime=self.runtime, store=self.store, model_provider=self.model_provider,
                 manager=self, token_usage=s.token_usage, created_at=s.created_at, updated_at=s.updated_at,
+                status=s.status,
             )
             self.sessions[s.id] = sess
             sess.start()

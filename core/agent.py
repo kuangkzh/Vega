@@ -29,6 +29,7 @@ class AgentSession:
         token_usage: Optional[Dict[str, int]] = None,
         created_at: Optional[float] = None,
         updated_at: Optional[float] = None,
+        status: Optional[str] = None,
     ):
         self.id = session_id
         self.cwd = cwd
@@ -39,7 +40,7 @@ class AgentSession:
         self.manager = manager
         self.created_at = created_at if created_at is not None else time.time()
         self.updated_at = updated_at if updated_at is not None else self.created_at
-        self.status = "paused"
+        self.status = status if status is not None else "paused"
         self.token_usage = dict(token_usage or {"input": 0, "output": 0, "cache": 0})
         self._wake = threading.Event()
         self._pending: List[Any] = []
