@@ -5,12 +5,13 @@ import importlib.util
 import inspect
 import json
 import os
-import re
 import sys
 import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import jinja2
 
 from core.config import resolve_prompt
 
@@ -158,22 +159,21 @@ def load_plugins(plugins_dir: str) -> Dict[str, "Plugin"]:
     return _REGISTRY
 
 
+def _finalize(value: Any) -> str:
+    """None / Undefined 留空，其余 str()，避免模板整体报错。"""
+    if value is None or isinstance(value, jinja2.Undefined):
+        return ""
+    return str(value)
+
+
+_MSG_ENV = jinja2.Environment(undefined=jinja2.ChainableUndefined, finalize=_finalize)
+
+
 def render_msg(template: str, result: Any) -> str:
-    """msg 模板渲染：支持 {{result}} 与 {{result.<key>}}。"""
+    """msg 模板渲染：支持 {{result}} 与 {{result.<key>}}，缺失值留空。"""
     if not template or "{{" not in template:
         return template
-
-    def _rep(m: "re.Match[str]") -> str:
-        expr = m.group(1).strip()
-        if expr == "result":
-            return result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
-        if expr.startswith("result."):
-            key = expr[len("result."):]
-            val = result.get(key) if isinstance(result, dict) else None
-            return "" if val is None else str(val)
-        return m.group(0)
-
-    return re.sub(r"\{\{(.*?)\}\}", _rep, template)
+    return _MSG_ENV.from_string(template).render(result=result)
 
 
 def format_tool_content(plugin_name: str, result: Any, msg: str = "") -> str:
