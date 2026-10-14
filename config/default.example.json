@@ -1,5 +1,5 @@
 {
-  "system_prompt": "You are CodeAgent, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
+  "system_prompt": "You are Vega, a coding-focused agent. Work in {{cwd}}. Current time: {{time}}.",
   "models": [
     {
       "id": "gpt-4o",

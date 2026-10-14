@@ -42,7 +42,7 @@ class FeishuImLink(ImLink):
         if not self.chat_id:
             return
         text = (
-            f"[CodeAgent 审批请求]\n插件: {pa.plugin_name}\n理由: {pa.request_reason}\n审批 uuid: {pa.uuid}\n"
+            f"[Vega 审批请求]\n插件: {pa.plugin_name}\n理由: {pa.request_reason}\n审批 uuid: {pa.uuid}\n"
             "请在控制台「后台任务」页面批准或拒绝。"
         )
         self.send(self.chat_id, text)

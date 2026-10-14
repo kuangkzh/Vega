@@ -15,7 +15,7 @@ from web.server import create_app
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="CodeAgent")
+    parser = argparse.ArgumentParser(description="Vega")
     parser.add_argument("-c", "--config")
     parser.add_argument("-d", "--dir")
     args = parser.parse_args()
@@ -25,15 +25,15 @@ def main() -> None:
     config_path = os.path.abspath(args.config)
     config = load_config(config_path)
 
-    print(f"[CodeAgent] 工作目录(cwd): {cwd}")
-    print(f"[CodeAgent] 配置文件: {config_path}")
+    print(f"[Vega] 工作目录(cwd): {cwd}")
+    print(f"[Vega] 配置文件: {config_path}")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     plugins_dir = os.path.join(base_dir, "plugins")
     data_dir = os.path.join(base_dir, "data")
 
-    # 数据库放在 CodeAgent 自己的 data/ 目录下（仅存会话/任务），模型配置在 config JSON 里
-    store = Store(os.path.join(data_dir, "codeagent.db"))
+    # 数据库放在 Vega 自己的 data/ 目录下（仅存会话/任务），模型配置在 config JSON 里
+    store = Store(os.path.join(data_dir, "vega.db"))
 
     def model_provider(model_id=None):
         mc = build_model(config, model_id)

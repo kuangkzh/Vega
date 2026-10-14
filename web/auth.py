@@ -11,7 +11,7 @@ class Auth:
         self.token = token
 
     def init_app(self, app) -> None:
-        app.secret_key = self.token or "codeagent-secret"
+        app.secret_key = self.token or "vega-secret"
 
     def check(self, token: str) -> bool:
         return bool(self.token) and token == self.token
