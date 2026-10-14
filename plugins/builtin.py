@@ -65,40 +65,71 @@ def shell_permission(config, args, _cwd):
     return str((config.get("permission") or {}).get("default") or "Denied")
 
 
-@register_plugin(
-    description="暂时没有更多任务可做时调用，暂停 Agent Loop 等待新指令",
-    parameters={"type": "object", "properties": {}},
-)
-def wait_for_new_instruction(ctx):
-    return PluginResult({"waiting": True}, "已暂停，等待新指令。")
+def _parse_lines_spec(spec: str) -> set:
+    """解析行号索引："0-4,6,8,11-20"（闭区间、0 起算）→ 命中的行号集合。"""
+    indexes: set = set()
+    for part in str(spec or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            left, _, right = part.partition("-")
+            try:
+                lo, hi = int(left.strip()), int(right.strip())
+            except ValueError:
+                raise ValueError(f"非法行号区间: {part}")
+            if lo > hi:
+                lo, hi = hi, lo
+            indexes.update(range(lo, hi + 1))
+        else:
+            try:
+                indexes.add(int(part))
+            except ValueError:
+                raise ValueError(f"非法行号: {part}")
+    return indexes
+
+
+def filter_text_lines(text: str, lines_spec: str = "", keyword: str = ""):
+    """统一的文本行筛选：按行号区间 + 关键词（与关系）筛选，返回 (文本, 命中行数, 总行数)。
+
+    - lines_spec：形如 "0-4,6,8,11-20"（闭区间、0 起算），可空表示全量。
+    - keyword：命中才保留的行内子串；同时提供行号与关键词时按与关系过滤。
+    - 越界行号静默取交集，不报错。
+    """
+    lines = (text or "").split("\n")
+    total = len(lines)
+    indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
+    out: list = []
+    matched = 0
+    for i, ln in enumerate(lines):
+        if indexes is not None and i not in indexes:
+            continue
+        if keyword and keyword not in ln:
+            continue
+        matched += 1
+        out.append(f"{i}: {ln.rstrip(chr(10))}")
+    return "\n".join(out), matched, total
 
 
 @register_plugin(
-    description="获取上一次超长结果（可按行号或关键词筛选，限制返回行数）",
+    description="获取上一次超长结果（可按行号区间或关键词筛选）",
     parameters={
         "type": "object",
         "properties": {
-            "keyword": {"type": "string", "description": "只返回包含该关键词的行"},
-            "start_line": {"type": "integer", "description": "起始行号（从1开始）"},
-            "max_lines": {"type": "integer", "description": "最多返回行数（默认50）"},
+            "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
+            "keyword": {"type": "string", "description": "只返回包含该关键词的行；同时给行号时按与关系再过滤"},
         },
     },
 )
-def get_last_overflow_result(ctx, keyword: str = "", start_line: int = 0, max_lines: int = 50):
+def get_last_overflow_result(ctx, lines: str = "", keyword: str = ""):
     text = ctx.runtime.last_overflow_result
     if not text:
         return PluginResult({}, "当前没有「上一次超长结果」可查。")
-    lines = text.split("\n")
-    picked = []
-    for i, ln in enumerate(lines, 1):
-        if keyword and keyword not in ln:
-            continue
-        if start_line and i < int(start_line):
-            continue
-        picked.append(f"{i}\t{ln}")
-        if len(picked) >= int(max_lines):
-            break
-    return PluginResult("\n".join(picked), f"匹配 {len(picked)} 行（原始共 {len(lines)} 行）")
+    try:
+        picked, matched, total = filter_text_lines(text, lines, keyword)
+    except ValueError as exc:
+        return PluginResult({}, str(exc))
+    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）")
 
 
 @register_plugin(
@@ -152,24 +183,31 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
 
 
 @register_plugin(
-    description="读入一个文件的全部内容（附行号）",
+    description="读入一个文件的内容（可按行号区间或关键词筛选，返回附行号）",
     parameters={
         "type": "object",
-        "properties": {"path": {"type": "string", "description": "文件路径（相对cwd或绝对）"}},
+        "properties": {
+            "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
+            "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
+            "keyword": {"type": "string", "description": "只返回包含该关键词的行；同时给行号时按与关系再过滤"},
+        },
         "required": ["path"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
     resolve_permission=file_permission,
 )
-def read_file(ctx, path: str):
+def read_file(ctx, path: str, lines: str = "", keyword: str = ""):
     p = _abs(ctx.cwd, str(path or ""))
     try:
         with open(p, "r", encoding="utf-8", errors="replace") as f:
-            lines = f.readlines()
+            text = f.read()
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
-    numbered = "\n".join(f"{i}: {ln.rstrip(chr(10))}" for i, ln in enumerate(lines, 1))
-    return PluginResult(numbered, f"共 {len(lines)} 行")
+    try:
+        picked, matched, total = filter_text_lines(text, lines, keyword)
+    except ValueError as exc:
+        return PluginResult({}, str(exc))
+    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行")
 
 
 @register_plugin(
@@ -178,7 +216,7 @@ def read_file(ctx, path: str):
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
-            "line": {"type": "integer", "description": "要替换的行号"},
+            "line": {"type": "integer", "description": "要替换的行号（0 起算）"},
             "content": {"type": "string", "description": "整行替换时的新内容"},
             "search": {"type": "string", "description": "search/replace 模式的查找串"},
             "replace": {"type": "string", "description": "search/replace 模式的替换串"},
@@ -205,9 +243,9 @@ def edit_file(ctx, path: str, line: int = 0, content: str = "", search: str = ""
     elif line:
         lines = original.split("\n")
         ln = int(line)
-        if ln < 1 or ln > len(lines):
-            return PluginResult({}, f"行号越界: {ln}（共{len(lines)}行）")
-        lines[ln - 1] = content
+        if ln < 0 or ln >= len(lines):
+            return PluginResult({}, f"行号越界: {ln}（共{len(lines)}行，0 起算）")
+        lines[ln] = content
         new_content = "\n".join(lines)
     else:
         return PluginResult({}, "需提供 line 或 search 参数")

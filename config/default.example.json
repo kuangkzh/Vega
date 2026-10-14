@@ -35,7 +35,6 @@
     "token": "change-me"
   },
   "plugins": {
-    "wait_for_new_instruction": { "permission": { "default": "Trusted" } },
     "get_last_overflow_result": { "permission": { "default": "Trusted" } },
     "request_approval": { "permission": { "default": "Trusted" } },
     "read_file": { "permission": { "cwd": "Trusted", "external": "AgentReview" } },

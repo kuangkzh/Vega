@@ -320,11 +320,7 @@ class AgentSession:
             tool_msg["task_id"] = res.result["task_id"]
         self.store.append_message(self.id, tool_msg)
         self.emit({"type": "message", "message": tool_msg})
-        if name == "wait_for_new_instruction":
-            self._pause_requested = True
-            self._set_status("complete")
-        else:
-            self._persist()
+        self._persist()
 
     def _add_usage(self, usage: TokenUsage) -> None:
         # 记录最近一次调用的用量：input 即当前完整上下文规模，供前端进度条展示；
