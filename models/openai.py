@@ -16,6 +16,10 @@ class OpenAIModel(BaseModel):
             return base
         return f"{base}/chat/completions"
 
+    def _attempts(self) -> int:
+        n = int(self.config.get("retry") or 0)
+        return n if n > 0 else 3
+
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         api_key = self.config.get("api_key") or ""
@@ -41,7 +45,7 @@ class OpenAIModel(BaseModel):
             resp.raise_for_status()
             return resp.json()
 
-        data = retry_call(_do, attempts=3)
+        data = retry_call(_do, attempts=self._attempts())
         return self._parse_completion(data)
 
     def chat_stream(
@@ -55,7 +59,7 @@ class OpenAIModel(BaseModel):
             resp.raise_for_status()
             return resp
 
-        resp = retry_call(_do, attempts=3)
+        resp = retry_call(_do, attempts=self._attempts())
 
         content_parts: List[str] = []
         tool_calls_acc: Dict[int, Dict[str, str]] = {}
