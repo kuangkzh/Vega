@@ -1,6 +1,7 @@
 """单 token 鉴权（登录 -> session cookie）。"""
 from __future__ import annotations
 
+from datetime import timedelta
 from functools import wraps
 
 from flask import Blueprint, jsonify, render_template, request, session
@@ -12,12 +13,14 @@ class Auth:
 
     def init_app(self, app) -> None:
         app.secret_key = self.token or "vega-secret"
+        app.permanent_session_lifetime = timedelta(days=7)
 
     def check(self, token: str) -> bool:
         return bool(self.token) and token == self.token
 
     def login(self, token: str) -> bool:
         if self.check(token):
+            session.permanent = True
             session["authed"] = True
             return True
         return False
