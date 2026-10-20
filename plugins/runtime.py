@@ -236,7 +236,7 @@ class PluginRuntime:
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
         self.pending: Dict[str, PendingApproval] = {}
-        self.last_overflow_result: Optional[str] = None
+        self.overflow_results: Dict[str, str] = {}
         self._lock = threading.RLock()
 
     def plugin_config(self, name: str) -> Dict[str, Any]:
@@ -309,9 +309,10 @@ class PluginRuntime:
         text = res.result if isinstance(res.result, str) else json.dumps(res.result, ensure_ascii=False)
         if len(text) <= MAX_RESULT_LEN:
             return
-        self.last_overflow_result = text
+        oid = "overflow_" + uuid.uuid4().hex[:8]
+        self.overflow_results[oid] = text
         res.result = text[:MAX_RESULT_LEN]
-        hint = "结果过长已截断，完整结果已暂存，可用 get_last_overflow_result 插件按行/关键词检索。"
+        hint = f"结果过长已截断，完整结果已暂存（overflow_id={oid}），可使用 get_overflow_result 查询本次超长结果。"
         res.msg = hint if not res.msg else f"{res.msg}\n{hint}"
 
     # ---------- 审批 ----------

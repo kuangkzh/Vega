@@ -114,19 +114,21 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
 
 
 @register_plugin(
-    description="获取上一次超长结果（可按行号区间或正则筛选）",
+    description="根据 id 获取超长结果（可按行号区间或正则筛选）",
     parameters={
         "type": "object",
         "properties": {
+            "overflow_id": {"type": "string", "description": "超长结果的唯一标识（超长截断时返回）"},
             "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
             "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
         },
+        "required": ["overflow_id"],
     },
 )
-def get_last_overflow_result(ctx, lines: str = "", regexp: str = ""):
-    text = ctx.runtime.last_overflow_result
+def get_overflow_result(ctx, overflow_id: str = "", lines: str = "", regexp: str = ""):
+    text = ctx.runtime.overflow_results.get(overflow_id)
     if not text:
-        return PluginResult({}, "当前没有「上一次超长结果」可查。")
+        return PluginResult({}, f"overflow_id={overflow_id}不存在或可能被清理")
     try:
         picked, matched, total = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
