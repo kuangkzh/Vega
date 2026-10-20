@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import jinja2
 
 from core.config import resolve_prompt
+from core.context import render_prompt
 
 DEFAULT_LEVEL = "Denied"
 MAX_RESULT_LEN = 8000
@@ -91,6 +92,10 @@ class Plugin:
             "type": "function",
             "function": {"name": self.name, "description": self.description, "parameters": self.parameters},
         }
+
+    def __str__(self) -> str:
+        """审批等场景的可读摘要：name：description（无描述时仅 name）。"""
+        return f"{self.name}：{self.description}" if self.description else self.name
 
 
 DEFAULT_CONFIG: Dict[str, Any] = {"permission": {"type": "permission-level", "keys": ("default",)}}
@@ -185,22 +190,30 @@ def format_tool_content(plugin_name: str, result: Any, msg: str = "") -> str:
     return "\n".join(parts)
 
 
-def render_approver_prompt(template: str, plugin: Optional["Plugin"], args: Dict[str, Any], reason: str) -> str:
-    """渲染审批 prompt 槽位。
+def render_approver_prompt(
+    template: str,
+    plugin: Optional["Plugin"],
+    args: Dict[str, Any],
+    reason: str,
+    cwd: str,
+    config: Dict[str, Any],
+) -> str:
+    """渲染审批 prompt 槽位（Jinja2，复用 render_prompt）。
 
-    支持 {{plugin}}（函数信息，形如「插件名：描述」）、{{args}}（执行参数 JSON）、{{reason}}（申请理由）。
+    基础上下文与 system_prompt 一致（整个 config 平铺 + {{ config.* }} + {{ time }} / {{ cwd }}），
+    额外提供 {{ plugin }}（可读摘要，等同 plugin.name：plugin.description）、{{ plugin.name }}、
+    {{ plugin.description }}、{{ args }}（执行参数 JSON）、{{ reason }}（申请理由）。
     """
-    info = ""
-    if plugin is not None:
-        info = f"{plugin.name}：{plugin.description}" if plugin.description else plugin.name
-    slots = {
-        "plugin": info,
-        "args": json.dumps(args or {}, ensure_ascii=False),
-        "reason": reason or "",
-    }
-    for key, val in slots.items():
-        template = template.replace("{{" + key + "}}", val)
-    return template
+    return render_prompt(
+        template,
+        config,
+        cwd,
+        extra={
+            "plugin": plugin or "",
+            "args": json.dumps(args or {}, ensure_ascii=False),
+            "reason": reason or "",
+        },
+    )
 
 
 @dataclass
@@ -413,11 +426,15 @@ class PluginRuntime:
         model = self.model_provider(approver.get("model"))
         if model is None:
             return "escalate", ""
+        project_ctx = self._resolve_project(pa.session_id)
+        cwd = project_ctx.get("cwd") or self.cwd
         system = render_approver_prompt(
             resolve_prompt(approver.get("prompt")),
             self.plugins.get(pa.plugin_name),
             pa.args,
             pa.request_reason,
+            cwd=cwd,
+            config=self.config,
         )
         messages = [
             {"role": "system", "content": system},
