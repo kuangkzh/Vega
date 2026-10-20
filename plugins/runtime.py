@@ -24,6 +24,7 @@ MAX_SUMMARY_CHARS = (2000, 100)
 class PluginResult:
     result: Any = None
     msg: str = ""
+    line_numbers: Optional[List[int]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {"result": self.result, "msg": self.msg}
@@ -165,10 +166,14 @@ def render_msg(template: str, result: Any) -> str:
     return _MSG_ENV.from_string(template).render(result=result)
 
 
-def format_tool_content(plugin_name: str, result: Any, msg: str = "") -> str:
-    """工具结果以 XML 展开，追加给模型上下文；纯文本统一在此加 0 起算行号。"""
+def format_tool_content(plugin_name: str, result: Any, msg: str = "", line_numbers: Optional[List[int]] = None) -> str:
+    """工具结果以 XML 展开，追加给模型上下文；纯文本统一在此加行号。"""
     if isinstance(result, str):
-        text = "\n".join(f"{i}: {ln}" for i, ln in enumerate(result.split("\n")))
+        lines = result.split("\n")
+        if line_numbers is not None:
+            text = "\n".join(f"{n}: {ln}" for n, ln in zip(line_numbers, lines))
+        else:
+            text = "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines))
     else:
         text = json.dumps(result, ensure_ascii=False, indent=2)
     parts = [f'<tool_result name="{plugin_name}">', str(text), "</tool_result>"]
@@ -236,7 +241,7 @@ class PluginRuntime:
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
         self.pending: Dict[str, PendingApproval] = {}
-        self.overflow_results: Dict[str, str] = {}
+        self.overflow_results: Dict[str, PluginResult] = {}
         self._lock = threading.RLock()
 
     def plugin_config(self, name: str) -> Dict[str, Any]:
@@ -309,21 +314,22 @@ class PluginRuntime:
         if len(text) <= MAX_RESULT_LEN + MAX_SUMMARY_CHARS[0]:
             return
         oid = "overflow_" + uuid.uuid4().hex[:8]
-        self.overflow_results[oid] = text
+        self.overflow_results[oid] = PluginResult(text, line_numbers=res.line_numbers)
         res.result = text[:MAX_RESULT_LEN]
         hint = f"结果过长已截断，完整结果已暂存（overflow_id={oid}），可使用 get_overflow_result 查询本次超长结果。"
         if isinstance(res.result, str):
-            hint += "\n\n截断部分摘要：\n" + self._overflow_summary(text, MAX_RESULT_LEN)
+            hint += "\n\n截断部分摘要：\n" + self._overflow_summary(text, MAX_RESULT_LEN, res.line_numbers)
         res.msg = hint if not res.msg else f"{res.msg}\n{hint}"
 
-    def _overflow_summary(self, text: str, limit: int) -> str:
+    def _overflow_summary(self, text: str, limit: int, line_numbers=None) -> str:
         start_line = text[:limit].count("\n")
         lines = re.findall("(\n*)([^\n]*)", text[limit:])[:-1]
 
         candidates = []
         for blanks, ln in lines:
             start_line += len(blanks)
-            candidates.append((-len(blanks), start_line, ln))
+            line_no = line_numbers[start_line] if line_numbers is not None else start_line
+            candidates.append((-len(blanks), line_no, ln))
         candidates.sort()
 
         picked = []

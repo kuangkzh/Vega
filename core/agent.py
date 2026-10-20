@@ -320,7 +320,7 @@ class AgentSession:
         except json.JSONDecodeError:
             args = {}
         res = self.runtime.execute(name, args, self.id)
-        content = format_tool_content(name, res.result, res.msg)
+        content = format_tool_content(name, res.result, res.msg, res.line_numbers)
         tool_msg = {"role": "tool", "tool_call_id": tc.get("id", ""), "name": name, "content": content}
         if isinstance(res.result, dict) and res.result.get("task_id"):
             tool_msg["task_id"] = res.result["task_id"]

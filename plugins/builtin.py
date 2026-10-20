@@ -90,17 +90,20 @@ def _parse_lines_spec(spec: str) -> set:
     return indexes
 
 
-def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
-    """统一的文本行筛选：按行号区间 + 正则表达式（与关系）筛选，返回 (文本, 命中行数, 总行数)。
+def filter_text_lines(text: str, lines_spec: str = "", regexp: str = "", base_numbers=None):
+    """统一的文本行筛选：按行号区间 + 正则表达式（与关系）筛选，返回 (文本, 命中行数, 总行数, 行号列表)。
 
     - lines_spec：形如 "0-4,6,8,11-20"（闭区间、0 起算），可空表示全量。
     - regexp：正则表达式；同时提供行号与正则时按与关系过滤。
+    - base_numbers：text 每行对应的原始行号（缺省即 0 起算）。
+    - 返回的行号列表为命中行的原始行号；全量且无基准时返回 None（展示层默认 0 起算）。
     """
     lines = (text or "").split("\n")
     total = len(lines)
     indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
     pattern = re.compile(str(regexp or "")) if str(regexp or "").strip() else None
     out: list = []
+    numbers: list = []
     matched = 0
     for i, ln in enumerate(lines):
         if indexes is not None and i not in indexes:
@@ -109,7 +112,10 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
             continue
         matched += 1
         out.append(ln)
-    return "\n".join(out), matched, total
+        numbers.append(i if base_numbers is None else base_numbers[i])
+    if indexes is None and pattern is None and base_numbers is None:
+        return "\n".join(out), matched, total, None
+    return "\n".join(out), matched, total, numbers
 
 
 @register_plugin(
@@ -118,21 +124,21 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
         "type": "object",
         "properties": {
             "overflow_id": {"type": "string", "description": "超长结果的唯一标识（超长截断时返回）"},
-            "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
+            "lines": {"type": "string", "description": "行号索引，如 \"0-4,6,8,11-20\"（闭合区间、0 起算）"},
             "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
         },
         "required": ["overflow_id"],
     },
 )
 def get_overflow_result(ctx, overflow_id: str = "", lines: str = "", regexp: str = ""):
-    text = ctx.runtime.overflow_results.get(overflow_id)
-    if not text:
+    cached = ctx.runtime.overflow_results.get(overflow_id)
+    if cached is None:
         return PluginResult({}, f"overflow_id={overflow_id}不存在或可能被清理")
     try:
-        picked, matched, total = filter_text_lines(text, lines, regexp)
+        picked, matched, total, numbers = filter_text_lines(cached.result, lines, regexp, cached.line_numbers)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）")
+    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）", line_numbers=numbers)
 
 
 @register_plugin(
@@ -191,7 +197,7 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
-            "lines": {"type": "string", "description": "行号索引，如 0-4,6,8,11-20（闭合区间、0 起算）"},
+            "lines": {"type": "string", "description": "行号索引，如 \"0-4,6,8,11-20\"（闭合区间、0 起算）"},
             "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
         },
         "required": ["path"],
@@ -207,10 +213,10 @@ def read_file(ctx, path: str, lines: str = "", regexp: str = ""):
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
     try:
-        picked, matched, total = filter_text_lines(text, lines, regexp)
+        picked, matched, total, numbers = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行")
+    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行", line_numbers=numbers)
 
 
 @register_plugin(
