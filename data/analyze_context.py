@@ -7,7 +7,7 @@
 
 用法：
     python data/analyze_context.py [db_path] [days]
-默认：db_path=./data/vega_v2.db，days=7。
+默认：db_path=./data/vega.db，days=7。
 """
 from __future__ import annotations
 
@@ -33,11 +33,11 @@ def _pct(part, total):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("db_path", nargs="?", default=None, help="SQLite 数据库路径（默认 ./data/vega_v2.db）")
+    ap.add_argument("db_path", nargs="?", default=None, help="SQLite 数据库路径（默认 ./data/vega.db）")
     ap.add_argument("days", nargs="?", type=int, default=7, help="统计最近 N 天（默认 7）")
     args = ap.parse_args()
 
-    db_path = args.db_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "vega_v2.db")
+    db_path = args.db_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "vega.db")
     if not os.path.exists(db_path):
         raise SystemExit(f"[错误] 数据库不存在: {db_path}")
 
