@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import sys
 import threading
 import uuid
@@ -16,6 +17,7 @@ from core.context import render_prompt
 
 DEFAULT_LEVEL = "Denied"
 MAX_RESULT_LEN = 8000
+MAX_SUMMARY_CHARS = (2000, 100)
 
 
 @dataclass
@@ -304,13 +306,33 @@ class PluginRuntime:
 
     def _handle_overflow(self, res: PluginResult) -> None:
         text = res.result if isinstance(res.result, str) else json.dumps(res.result, ensure_ascii=False)
-        if len(text) <= MAX_RESULT_LEN:
+        if len(text) <= MAX_RESULT_LEN + MAX_SUMMARY_CHARS[0]:
             return
         oid = "overflow_" + uuid.uuid4().hex[:8]
         self.overflow_results[oid] = text
         res.result = text[:MAX_RESULT_LEN]
         hint = f"结果过长已截断，完整结果已暂存（overflow_id={oid}），可使用 get_overflow_result 查询本次超长结果。"
+        if isinstance(res.result, str):
+            hint += "\n\n截断部分摘要：\n" + self._overflow_summary(text, MAX_RESULT_LEN)
         res.msg = hint if not res.msg else f"{res.msg}\n{hint}"
+
+    def _overflow_summary(self, text: str, limit: int) -> str:
+        start_line = text[:limit].count("\n")
+        lines = re.findall("(\n*)([^\n]*)", text[limit:])[:-1]
+
+        candidates = []
+        for blanks, ln in lines:
+            start_line += len(blanks)
+            candidates.append((-len(blanks), start_line, ln))
+        candidates.sort()
+
+        picked = []
+        for _, i, ln in candidates:
+            snippet = ln if len(ln) <= MAX_SUMMARY_CHARS[1] else ln[:MAX_SUMMARY_CHARS[1]] + "……"
+            if sum(len(x[1]) for x in picked) + len(snippet) > MAX_SUMMARY_CHARS[0]:
+                break
+            picked.append((i, snippet))
+        return "\n".join(f"{i}: {snippet}" for i, snippet in sorted(picked))
 
     # ---------- 审批 ----------
     @staticmethod
