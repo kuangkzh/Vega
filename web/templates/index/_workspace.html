@@ -24,9 +24,9 @@
           <div class="d-flex gap-1 align-items-center">
             <button type="button" class="btn btn-sm px-1 py-0 flex-shrink-0 project-toggle" @click="toggleProject(p.id)">[[ p.expanded ? '▾' : '▸' ]]</button>
             <span class="project-name flex-grow-1 text-truncate" :title="p.path" @click="selectProject(p.id)">[[ p.name ]]</span>
-            <button type="button" class="btn btn-sm px-1 py-0 flex-shrink-0 btn-outline-secondary" title="新建会话" @click="newSession(p.id)">+</button>
+            <button type="button" class="btn btn-sm flex-shrink-0" :class="p.id===selectedProjectId ? 'btn-outline-primary' : 'btn-outline-secondary'" style="padding:0 8px;" title="新建会话" @click="newSession(p.id)">+</button>
             <div class="project-menu-wrap">
-              <button type="button" class="btn btn-sm px-1 py-0 flex-shrink-0 btn-outline-secondary" title="菜单" @click.stop="toggleProjectMenu(p.id)">⋮</button>
+              <button type="button" class="btn btn-sm flex-shrink-0 btn-outline-secondary" style="padding:0 6px;margin-left: 4px;" title="菜单" @click.stop="toggleProjectMenu(p.id)">⋮</button>
               <div v-if="p.menuOpen" class="project-menu" @click.stop>
                 <button type="button" class="project-menu-item" @click="openProjectCode(p.id)">code</button>
                 <button type="button" class="project-menu-item" @click="openProjectGit(p.id)">git</button>
