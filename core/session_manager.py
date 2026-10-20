@@ -57,7 +57,7 @@ class SessionManager:
 
     def _make_session(self, project_id: str) -> AgentSession:
         project = self.projects.get(project_id)
-        sid = uuid.uuid4().hex
+        sid = uuid.uuid4().hex[:8]
         sess = AgentSession(
             session_id=sid, cwd=project.path if project else self.cwd, config=self.config,
             runtime=self.runtime, store=self.store, model_provider=self.model_provider,
@@ -104,7 +104,7 @@ class SessionManager:
         path = os.path.abspath(path or ".")
         os.makedirs(path, exist_ok=True)
         now = time.time()
-        p = Project(id=uuid.uuid4().hex, path=path, im_link=dict(im_link or {}), created_at=now, updated_at=now)
+        p = Project(id=uuid.uuid4().hex[:8], path=path, im_link=dict(im_link or {}), created_at=now, updated_at=now)
         self.store.save_project(p)
         with self._lock:
             self.projects[p.id] = p
