@@ -96,6 +96,7 @@ window.CAChat = {
       this.closeStream();
       this.selectedProjectId = s.project_id;
       this.workspaceView = 'chat';
+      this.workspaceMenuOpen = false;
       this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
       this.usage = s.token_usage; this.maxContext = s.max_context || 0;
       await this.loadMessages();

@@ -15,8 +15,11 @@
     <div class="text-muted mt-2">加载中…</div>
   </div>
   <div v-else class="container-fluid mt-3">
+    <button type="button" class="btn btn-sm btn-outline-secondary d-md-none mb-2" @click="codeBrowseOpen = !codeBrowseOpen">
+      [[ currentBrowsePath ]]<span class="ms-1">[[ codeBrowseOpen ? '▲' : '▼' ]]</span>
+    </button>
     <div class="code-grid">
-      <div class="code-sidebar">
+      <div class="code-sidebar d-md-flex" :class="{ 'is-open': codeBrowseOpen }">
         <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
         <ul class="list-group code-file-list">
           <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center">

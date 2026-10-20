@@ -3,7 +3,7 @@ window.CAState = {
     return {
       loading: true, tab: 'workspace',
       projects: [], selectedProjectId: null, workspaceView: 'chat',
-      showProjectForm: false,
+      workspaceMenuOpen: false, showProjectForm: false,
       deleteProjectInput: '',
       projectForm: { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } },
       currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '',

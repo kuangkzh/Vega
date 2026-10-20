@@ -1,6 +1,9 @@
 <div v-if="tab==='workspace'" class="container-fluid workspace-page">
+  <button type="button" class="btn btn-sm btn-outline-secondary d-md-none mb-2" @click="workspaceMenuOpen = !workspaceMenuOpen">
+    项目 / 会话<span class="ms-1">[[ workspaceMenuOpen ? '▲' : '▼' ]]</span>
+  </button>
   <div class="workspace-grid">
-    <div class="workspace-sidebar">
+    <div class="workspace-sidebar d-md-flex" :class="{ 'is-open': workspaceMenuOpen }">
       <div class="d-flex gap-2 mb-2">
         <button type="button" class="btn btn-sm btn-primary flex-grow-1" @click="showProjectForm = !showProjectForm">新建 project</button>
       </div>

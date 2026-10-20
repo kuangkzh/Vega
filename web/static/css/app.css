@@ -484,6 +484,21 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .project-form { font-size: 0.85rem; }
 
 @media (max-width: 767.98px) {
-  .workspace-grid { flex-direction: column; }
-  .workspace-sidebar { width: auto; max-height: 45vh; }
+  .workspace-grid { position: relative; }
+  .workspace-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    z-index: 20;
+    max-height: 70vh;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem;
+    display: none;
+  }
+  .workspace-sidebar.is-open { display: flex; }
 }
