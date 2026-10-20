@@ -9,7 +9,7 @@ if (typeof window.marked !== 'undefined') {
 
 window.CACode = {
   watch: {
-    tab(v) {
+    workspaceView(v) {
       if (v === 'code') {
         this.$nextTick(() => this.initEditor());
       } else if (this.cm) {
@@ -42,7 +42,7 @@ window.CACode = {
     browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
     async fetchBrowse(path) {
       await this.loadGitStatus();
-      const r = await this.api('/api/browse?path=' + encodeURIComponent(path || '.'));
+      const r = await this.api('/api/browse?path=' + encodeURIComponent(path || '.') + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
       if (d.entries) {
         this.browsePath = String(d.path || '.').replace(/\\/g, '/');
@@ -66,13 +66,13 @@ window.CACode = {
       return { text: arr.join(' '), cls: clsMap[arr[0]] || '' };
     },
     async loadFileDiff(path) {
-      const r = await this.api('/api/file/diff?path=' + encodeURIComponent(path));
+      const r = await this.api('/api/file/diff?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
       const hasDiff = (d.lines && d.lines.some(Boolean)) || (d.deleted && d.deleted.length);
       this.fileDiff = hasDiff ? d : null;
     },
     async openFile(path) {
-      const r = await this.api('/api/file?path=' + encodeURIComponent(path));
+      const r = await this.api('/api/file?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
       if (d.error) { alert(d.error); return; }
       if (d.content !== undefined) {
@@ -99,7 +99,7 @@ window.CACode = {
     },
     async saveFile() {
       if (this.cm) this.fileContent = this.cm.getValue();
-      await this.api('/api/file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: this.currentFilePath, content: this.fileContent}) });
+      await this.api('/api/file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({project_id: this.selectedProjectId, path: this.currentFilePath, content: this.fileContent}) });
       await this.loadFileDiff(this.currentFilePath);
       this.applyDiffMarks();
     },

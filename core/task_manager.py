@@ -60,10 +60,10 @@ class TaskManager:
                     pass
 
     # ---------- 任务 ----------
-    def submit(self, name: str, session_id: Optional[str], target: Callable, params: Optional[Dict[str, Any]] = None, tool_name: Optional[str] = None, pending: bool = False) -> str:
+    def submit(self, name: str, session_id: Optional[str], target: Callable, params: Optional[Dict[str, Any]] = None, tool_name: Optional[str] = None, pending: bool = False, project_id: Optional[str] = None) -> str:
         task_id = self._make_id(name)
         status = "pending_approval" if pending else "running"
-        t = BackgroundTask(id=task_id, name=name, session_id=session_id, start_time=_now_str(), status=status, pending_approval=pending, params=params or {})
+        t = BackgroundTask(id=task_id, name=name, session_id=session_id, project_id=project_id, start_time=_now_str(), status=status, pending_approval=pending, params=params or {})
         self.store.save_task(t)
         self.register_cleanup()
         threading.Thread(target=self._execute, args=(task_id, session_id, target, tool_name), daemon=True).start()

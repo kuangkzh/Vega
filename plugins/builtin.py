@@ -166,7 +166,7 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
             return PluginResult({"stdout": out or "", "stderr": err or "", "returncode": proc.returncode}, f"异步命令返回码 {proc.returncode}")
 
         try:
-            task_id = tm.submit(task_name or "shell", ctx.session_id, target, params={"command": command}, tool_name="run_shell")
+            task_id = tm.submit(task_name or "shell", ctx.session_id, target, params={"command": command}, tool_name="run_shell", project_id=ctx.project_id)
         except ValueError as exc:
             return PluginResult({}, str(exc))
         return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
@@ -320,11 +320,11 @@ def request_approval(ctx, uuid: str, task_name: str = "", reason: str = ""):
     },
 )
 def send_im(ctx, content: str):
-    im = (ctx.runtime.config or {}).get("im_link") or {}
+    im = ctx.im_config or {}
     target = im.get("chat_id") or ""
     if not target:
         return PluginResult({}, "未配置 IM 接收目标，无法发送")
-    link = ctx.runtime.im_link
+    link = ctx.im_link
     if link is None:
         return PluginResult({}, "IM 连接未启用")
     try:

@@ -9,11 +9,17 @@ window.CACore = {
       const r = await fetch('/api/authed'); const d = await r.json();
       if (!d.authed) { location.href = '/login'; return; }
       this.loading = false;
-      await this.loadSessions();
+      await this.loadProjects();
       this.openGlobalStream();
-      if (this.sessions.length) this.selectSession(this.sessions[0].id);
+      if (!this.currentSid && this.projects.length) {
+        const first = this.projects.find(p => p.sessions && p.sessions.length);
+        if (first) this.selectSession(first.sessions[0].id);
+      }
     },
     async logout() { await this.api('/api/logout', { method:'POST' }); location.href = '/login'; },
   },
-  mounted() { this.checkAuth(); },
+  mounted() {
+      this.checkAuth();
+      document.addEventListener('click', () => this.closeProjectMenus());
+    },
 };

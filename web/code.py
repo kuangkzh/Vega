@@ -61,10 +61,21 @@ def _diff_lines(head_content: str, work_content: str) -> dict:
     return {"lines": lines, "deleted": deleted, "hunks": hunks}
 
 
-def build_bp(cwd: str) -> Blueprint:
+def build_bp(manager) -> Blueprint:
     bp = Blueprint("code", __name__)
 
-    def _git(args):
+    def _cwd():
+        """从 query(project) 或 body(project_id) 解析当前 project 的工作路径。"""
+        pid = request.args.get("project") or ""
+        if not pid:
+            data = request.get_json(force=True, silent=True) or {}
+            pid = data.get("project_id") or ""
+        project = manager.get_project(pid) if pid else None
+        if project is None:
+            raise ValueError("project not found")
+        return project.path
+
+    def _git(args, cwd):
         try:
             r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         except Exception as exc:  # noqa: BLE001
@@ -74,6 +85,10 @@ def build_bp(cwd: str) -> Blueprint:
     @bp.get("/api/browse")
     @login_required
     def api_browse():
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
         rel = request.args.get("path") or "."
         try:
             target = _safe_path(cwd, rel)
@@ -91,6 +106,10 @@ def build_bp(cwd: str) -> Blueprint:
     @bp.get("/api/file")
     @login_required
     def api_read_file():
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
         rel = request.args.get("path") or ""
         try:
             target = _safe_path(cwd, rel)
@@ -109,6 +128,10 @@ def build_bp(cwd: str) -> Blueprint:
     @login_required
     def api_write_file():
         data = request.get_json(force=True, silent=True) or {}
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
         rel = data.get("path") or ""
         try:
             target = _safe_path(cwd, rel)
@@ -124,6 +147,10 @@ def build_bp(cwd: str) -> Blueprint:
     @bp.get("/api/file/diff")
     @login_required
     def api_file_diff():
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
         rel = request.args.get("path") or ""
         try:
             target = _safe_path(cwd, rel)
@@ -142,7 +169,7 @@ def build_bp(cwd: str) -> Blueprint:
             return jsonify({"path": os.path.relpath(target, cwd), "binary": True, "lines": [], "deleted": [], "hunks": [], "headLines": []})
 
         git_path = rel.replace(os.sep, "/")
-        head_res = _git(["show", f"HEAD:{git_path}"])
+        head_res = _git(["show", f"HEAD:{git_path}"], cwd)
         tracked = head_res.get("code") == 0
         head = head_res.get("out") if tracked else ""
 
@@ -159,18 +186,30 @@ def build_bp(cwd: str) -> Blueprint:
     @bp.get("/api/git/branches")
     @login_required
     def api_git_branches():
-        cur = _git(["rev-parse", "--abbrev-ref", "HEAD"])
-        brs = _git(["branch", "-a"])
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
+        cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd)
+        brs = _git(["branch", "-a"], cwd)
         return jsonify({"current": (cur.get("out") or "").strip(), "branches": brs.get("out") or ""})
 
     @bp.get("/api/git/log")
     @login_required
     def api_git_log():
-        return jsonify(_git(["log", "--graph", "--oneline", "--all", "-30"]))
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
+        return jsonify(_git(["log", "--graph", "--oneline", "--all", "-30"], cwd))
 
     @bp.get("/api/git/status")
     @login_required
     def api_git_status():
-        return jsonify(_git(["status", "--short"]))
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
+        return jsonify(_git(["status", "--short"], cwd))
 
     return bp

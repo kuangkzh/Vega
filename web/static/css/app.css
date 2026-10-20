@@ -219,7 +219,7 @@ pre { white-space: pre-wrap; font-size: 12px; }
 }
 .app-shell > .navbar { flex: 0 0 auto; }
 .app-content { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: auto; }
-.app-content > .container-fluid:not(.chat-page) { flex: 0 0 auto; }
+.app-content > .container-fluid:not(.chat-page):not(.workspace-page) { flex: 0 0 auto; }
 
 /* ===== 聊天页：占满内容区，发送框贴底 ===== */
 .chat-page {
@@ -434,3 +434,56 @@ pre { white-space: pre-wrap; font-size: 12px; }
   word-break: break-all;
 }
 .diff-empty { padding: 2px 8px; color: var(--app-text-muted); font-style: italic; }
+
+/* ===== 工作区（project ← chat 二级列表 + 多视图）===== */
+.workspace-page {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.75rem;
+}
+.workspace-grid { flex: 1 1 0; min-height: 0; display: flex; gap: 0.75rem; }
+.workspace-sidebar { width: 26%; min-width: 0; display: flex; flex-direction: column; }
+.project-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.project-toggle { color: var(--app-text-muted); cursor: pointer; }
+.project-name { font-weight: 600; cursor: pointer; min-width: 0; }
+.project-menu-wrap { position: relative; flex-shrink: 0; }
+.project-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  min-width: 120px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.project-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--app-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.project-menu-item:hover { background: var(--app-surface-2); }
+.project-chat-list { max-height: 32vh; overflow-y: auto; }
+.workspace-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.workspace-main > div { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.workspace-view { overflow-y: auto; }
+.project-form { font-size: 0.85rem; }
+
+@media (max-width: 767.98px) {
+  .workspace-grid { flex-direction: column; }
+  .workspace-sidebar { width: auto; max-height: 45vh; }
+}

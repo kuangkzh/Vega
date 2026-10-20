@@ -30,6 +30,7 @@ class AgentSession:
         created_at: Optional[float] = None,
         updated_at: Optional[float] = None,
         status: Optional[str] = None,
+        project_id: str = "",
     ):
         self.id = session_id
         self.cwd = cwd
@@ -38,6 +39,7 @@ class AgentSession:
         self.store = store
         self.model_provider = model_provider
         self.manager = manager
+        self.project_id = project_id
         self.created_at = created_at if created_at is not None else time.time()
         self.updated_at = updated_at if updated_at is not None else self.created_at
         self.status = status if status is not None else "paused"
@@ -138,6 +140,7 @@ class AgentSession:
         max_ctx = int((entry or {}).get("max_context") or 0)
         return {
             "id": self.id,
+            "project_id": self.project_id,
             "title": self._title(),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -156,7 +159,7 @@ class AgentSession:
         try:
             s = ChatSession(
                 id=self.id, created_at=self.created_at, updated_at=self.updated_at,
-                status=self.status, token_usage=self.token_usage,
+                status=self.status, token_usage=self.token_usage, project_id=self.project_id,
             )
             self.store.save_session(s)
         except Exception as exc:  # noqa: BLE001
@@ -295,7 +298,7 @@ class AgentSession:
             self._append_error("[错误] 未配置可用模型")
             return "", []
         if tools is None:
-            tools = self.runtime.visible_tools()
+            tools = self.runtime.visible_tools(self.cwd)
         try:
             return self._stream_round(tools)
         except Exception as exc:  # noqa: BLE001

@@ -12,10 +12,11 @@
   </div>
   <div class="table-responsive">
   <table class="table table-sm table-bordered">
-    <thead><tr><th>任务名</th><th>执行时间</th><th>状态</th><th>操作</th></tr></thead>
+    <thead><tr><th>任务名</th><th>项目</th><th>执行时间</th><th>状态</th><th>操作</th></tr></thead>
     <tbody>
       <tr v-for="t in tasks" :key="t.id">
         <td>[[ t.name ]]</td>
+        <td>[[ projectLabel(t.project_id) ]]</td>
         <td>[[ t.start_time ]]</td>
         <td>[[ t.status ]]</td>
         <td>

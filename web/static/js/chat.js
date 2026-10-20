@@ -3,12 +3,14 @@ window.CAChat = {
     messages: { handler() { this.scrollChat(); }, deep: true },
     streamText() { this.scrollChat(); },
     streamReasoning() { this.scrollChat(); },
-    tab(v) { if (v === 'chat') this.scrollChat(); },
+    tab(v) { if (v === 'workspace' && this.workspaceView === 'chat') this.scrollChat(); },
+    workspaceView(v) { if (v === 'chat') this.scrollChat(); },
   },
   computed: {
     currentSession() {
       if (!this.currentSid) return null;
-      return this.sessions.find(x => x.id === this.currentSid) || null;
+      const p = this.currentProject;
+      return (p && p.sessions.find(x => x.id === this.currentSid)) || null;
     },
     currentSessionTitle() {
       const s = this.currentSession;
@@ -22,11 +24,38 @@ window.CAChat = {
         if (el) el.scrollTop = el.scrollHeight;
       });
     },
-    async loadSessions() {
-      const r = await this.api('/api/sessions');
+    async loadProjects() {
+      const r = await this.api('/api/projects');
       const list = await r.json();
-      list.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
-      this.sessions = list;
+      for (const p of list) {
+        const old = this.projects.find(x => x.id === p.id);
+        p.expanded = old ? !!old.expanded : false;
+        p.menuOpen = old ? !!old.menuOpen : false;
+        p.sessions = (p.sessions || []).sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
+      }
+      this.projects = list;
+    },
+    toggleProject(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      if (p) p.expanded = !p.expanded;
+    },
+    toggleProjectMenu(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      if (!p) return;
+      const willOpen = !p.menuOpen;
+      for (const x of this.projects) x.menuOpen = false;
+      p.menuOpen = willOpen;
+    },
+    selectProject(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      if (!p) return;
+      const wasSelected = this.selectedProjectId === pid;
+      this.selectedProjectId = pid;
+      this.workspaceView = 'chat';
+      p.expanded = wasSelected ? !p.expanded : true;
+    },
+    closeProjectMenus() {
+      for (const p of this.projects) p.menuOpen = false;
     },
     formatTime(ts) {
       if (!ts) return '';
@@ -53,13 +82,22 @@ window.CAChat = {
       return String(n);
     },
     async selectSession(sid) {
-      this.sessionsOpen = false;
+      const s = this.findSession(sid);
+      if (!s) return;
       this.closeStream();
+      this.selectedProjectId = s.project_id;
+      this.workspaceView = 'chat';
       this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
-      const s = this.sessions.find(x => x.id === sid);
-      if (s) { this.usage = s.token_usage; this.maxContext = s.max_context || 0; }
+      this.usage = s.token_usage; this.maxContext = s.max_context || 0;
       await this.loadMessages();
       this.openStream();
+    },
+    findSession(sid) {
+      for (const p of this.projects) {
+        const s = (p.sessions || []).find(x => x.id === sid);
+        if (s) return s;
+      }
+      return null;
     },
     async loadMessages() {
       if (!this.currentSid) return;
@@ -71,13 +109,22 @@ window.CAChat = {
       const r = await this.api('/api/sessions/' + this.currentSid + '/pending');
       this.pending = await r.json() || [];
     },
-    async newSession() {
-      const r = await this.api('/api/sessions', { method:'POST' });
-      const s = await r.json(); await this.loadSessions(); this.selectSession(s.id);
+    async newSession(projectId) {
+      if (!projectId) return;
+      const r = await this.api('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ project_id: projectId }) });
+      const s = await r.json();
+      this.selectedProjectId = projectId;
+      const p = this.projects.find(x => x.id === projectId);
+      if (p) p.expanded = true;
+      await this.loadProjects();
+      await this.selectSession(s.id);
     },
     async forkMessage(sid, index) {
       const r = await this.api('/api/sessions/' + sid + '/fork', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message_index: index }) });
-      const s = await r.json(); await this.loadSessions(); this.selectSession(s.id);
+      const s = await r.json();
+      this.selectedProjectId = s.project_id;
+      await this.loadProjects();
+      await this.selectSession(s.id);
     },
     async deleteSession(sid) {
       if (!confirm('确定删除该会话？此操作不可恢复。')) return;
@@ -91,11 +138,11 @@ window.CAChat = {
         this.usage = null;
         this.closeStream();
       }
-      await this.loadSessions();
+      await this.loadProjects();
     },
     async toggleIm(sid) {
       await this.api('/api/sessions/' + sid + '/im/toggle', { method:'POST' });
-      await this.loadSessions();
+      await this.loadProjects();
     },
     onChatEnter(e) {
       if (e.shiftKey) return;   // Shift+Enter 走浏览器默认换行
@@ -131,7 +178,7 @@ window.CAChat = {
       this.es.onmessage = (ev) => {
         if (sid !== this.currentSid) return;  // 忽略残留旧流事件，避免切换会话时串台
         const d = JSON.parse(ev.data);
-        const cur = this.sessions.find(x => x.id === sid);
+        const cur = this.findSession(sid);
         if (d.type === 'text') this.streamText += d.content;
         else if (d.type === 'reasoning') this.streamReasoning += d.content;
         else if (d.type === 'message') {
@@ -147,13 +194,13 @@ window.CAChat = {
         }
         else if (d.type === 'usage') this.usage = d.usage;
         else if (d.type === 'restart') {
-          this.loadSessions().then(() => this.selectSession(d.new_id));
+          this.loadProjects().then(() => this.selectSession(d.new_id));
         }
         else if (d.type === 'status') {
           if (cur) cur.status = d.status;
           if (d.status === 'paused' || d.status === 'complete' || d.status === 'error') {
             this.streamText = ''; this.streamReasoning = '';
-            this.loadMessages(); this.loadSessions();
+            this.loadMessages(); this.loadProjects();
           }
         }
       };
@@ -167,13 +214,76 @@ window.CAChat = {
       this.globalEs.onmessage = (ev) => {
         const d = JSON.parse(ev.data);
         if (d.type === 'session') this.upsertSession(d.session);
+        else if (d.type === 'project') this.upsertProject(d.project);
       };
     },
     upsertSession(sess) {
-      const i = this.sessions.findIndex(x => x.id === sess.id);
-      if (i >= 0) this.sessions[i] = sess;
-      else this.sessions.push(sess);
-      this.sessions.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
+      const p = this.projects.find(x => x.id === sess.project_id);
+      if (!p) return;
+      p.sessions = p.sessions || [];
+      const i = p.sessions.findIndex(x => x.id === sess.id);
+      if (i >= 0) p.sessions[i] = sess;
+      else p.sessions.push(sess);
+      p.sessions.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
     },
-  },
+    upsertProject(project) {
+      if (project.deleted) {
+        const i = this.projects.findIndex(x => x.id === project.id);
+        if (i >= 0) this.projects.splice(i, 1);
+        if (this.selectedProjectId === project.id) {
+          this.selectedProjectId = null; this.currentSid = null; this.messages = [];
+          this.closeStream();
+        }
+        return;
+      }
+      const i = this.projects.findIndex(x => x.id === project.id);
+      if (i >= 0) {
+        const old = this.projects[i];
+        this.projects[i] = { ...project, sessions: old.sessions || [], expanded: old.expanded, menuOpen: old.menuOpen };
+      } else {
+        this.projects.push({ ...project, sessions: [], expanded: false, menuOpen: false });
+      }
+    },
+    async createProject() {
+      if (!this.projectForm.path.trim()) { alert('请填写项目路径'); return; }
+      await this.api('/api/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path: this.projectForm.path, im_link: this.projectForm.im_link }) });
+      this.showProjectForm = false;
+      this.projectForm = { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } };
+      await this.loadProjects();
+    },
+    openProjectCode(pid) {
+      this.closeProjectMenus();
+      window.open('/code?project=' + encodeURIComponent(pid), '_blank');
+    },
+    openProjectGit(pid) {
+      this.closeProjectMenus();
+      window.open('/git?project=' + encodeURIComponent(pid), '_blank');
+    },
+    openProjectSettings(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      if (!p) return;
+      this.closeProjectMenus();
+      this.selectedProjectId = pid;
+      this.workspaceView = 'project_settings';
+      this.deleteProjectInput = '';
+      this.projectForm = { path: p.path, im_link: { ...(p.im_link || {}) } };
+    },
+    async saveProjectSettings() {
+      if (!this.selectedProjectId) return;
+      await this.api('/api/projects/' + this.selectedProjectId, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path: this.projectForm.path, im_link: this.projectForm.im_link }) });
+      await this.loadProjects();
+    },
+    async deleteProject(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      if (!p || !this.deleteProjectInput || this.deleteProjectInput !== p.name) return;
+      await this.api('/api/projects/' + pid, { method:'DELETE' });
+      if (this.selectedProjectId === pid) {
+        this.selectedProjectId = null; this.currentSid = null; this.messages = [];
+        this.workspaceView = 'chat';
+        this.closeStream();
+      }
+      this.deleteProjectInput = '';
+      await this.loadProjects();
+    },
+    },
 };

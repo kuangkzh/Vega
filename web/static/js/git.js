@@ -1,16 +1,18 @@
 window.CAGit = {
   methods: {
     async loadGit() {
-      const bb = await (await this.api('/api/git/branches')).json();
+      const p = encodeURIComponent(this.selectedProjectId || '');
+      const bb = await (await this.api('/api/git/branches?project=' + p)).json();
       this.gitCurrent = bb.current;
       this.gitBranchList = this.parseBranches(bb.branches || '');
-      const lg = await (await this.api('/api/git/log')).json();
+      const lg = await (await this.api('/api/git/log?project=' + p)).json();
       this.gitErr = lg.err || '';
       this.gitLogList = this.parseLog(lg.out || '');
       await this.loadGitStatus();
     },
     async loadGitStatus() {
-      const s = await (await this.api('/api/git/status')).json();
+      const p = encodeURIComponent(this.selectedProjectId || '');
+      const s = await (await this.api('/api/git/status?project=' + p)).json();
       this.gitStatusList = this.parseStatus(s.out || '');
       this.buildStatusMap();
     },

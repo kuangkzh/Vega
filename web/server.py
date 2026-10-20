@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 
 from flask import Flask, jsonify, render_template, request
 
@@ -44,10 +45,56 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
     def index():
         return render_template("index.html")
 
+    @app.get("/code")
+    def code_page():
+        return render_template("code_window.html")
+
+    @app.get("/git")
+    def git_page():
+        return render_template("git_window.html")
+
     # ---------- 蓝图分区 ----------
     app.register_blueprint(build_auth_bp(auth))
     app.register_blueprint(build_sessions_bp(manager, auth))
-    app.register_blueprint(build_code_bp(cwd))
+    app.register_blueprint(build_code_bp(manager))
+
+    # ---------- 项目 ----------
+    def _project_payload(p):
+        sessions = []
+        for s in manager.list(p.id):
+            d = {**s.to_dict(), "im_bound": s.id == manager.get_im_session_id(p.id)}
+            sessions.append(d)
+        return {**p.to_dict(), "name": os.path.basename(p.path.rstrip("/\\")) or p.path, "sessions": sessions}
+
+    @app.get("/api/projects")
+    @login_required
+    def api_projects():
+        return jsonify([_project_payload(p) for p in manager.list_projects()])
+
+    @app.post("/api/projects")
+    @login_required
+    def api_create_project():
+        data = request.get_json(force=True, silent=True) or {}
+        path = (data.get("path") or "").strip()
+        if not path:
+            return jsonify({"error": "缺少 path"}), 400
+        p = manager.create_project(path, data.get("im_link"))
+        return jsonify(_project_payload(p))
+
+    @app.put("/api/projects/<pid>")
+    @login_required
+    def api_update_project(pid):
+        data = request.get_json(force=True, silent=True) or {}
+        p = manager.update_project(pid, path=data.get("path"), im_link=data.get("im_link"))
+        if p is None:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(_project_payload(p))
+
+    @app.delete("/api/projects/<pid>")
+    @login_required
+    def api_delete_project(pid):
+        manager.delete_project(pid)
+        return jsonify({"ok": True})
 
     # ---------- 后台任务 ----------
     @app.get("/api/tasks")

@@ -53,13 +53,22 @@ def build_bp(manager, auth) -> Blueprint:
     @bp.get("/api/sessions")
     @login_required
     def api_sessions():
-        bound = manager.get_im_session_id()
-        return jsonify([{**s.to_dict(), "im_bound": s.id == bound} for s in manager.list()])
+        project_id = request.args.get("project_id") or ""
+        sessions = manager.list(project_id or None)
+        out = []
+        for s in sessions:
+            d = {**s.to_dict(), "im_bound": s.id == manager.get_im_session_id(s.project_id)}
+            out.append(d)
+        return jsonify(out)
 
     @bp.post("/api/sessions")
     @login_required
     def api_create_session():
-        s = manager.create()
+        data = request.get_json(force=True, silent=True) or {}
+        project_id = data.get("project_id") or ""
+        s = manager.create(project_id or None)
+        if s is None:
+            return jsonify({"error": "project not found"}), 404
         return jsonify(s.to_dict())
 
     @bp.post("/api/sessions/<sid>/fork")
@@ -128,10 +137,11 @@ def build_bp(manager, auth) -> Blueprint:
     @bp.post("/api/sessions/<sid>/im/toggle")
     @login_required
     def api_im_toggle(sid):
-        if manager.get(sid) is None:
+        s = manager.get(sid)
+        if s is None:
             return jsonify({"error": "not found"}), 404
-        bound = manager.toggle_im(sid)
-        return jsonify({"im_bound": bound, "im_session_id": manager.get_im_session_id()})
+        bound = manager.toggle_im(s.project_id, sid)
+        return jsonify({"im_bound": bound, "im_session_id": manager.get_im_session_id(s.project_id)})
 
     @bp.get("/api/sessions/<sid>/stream")
     def api_stream(sid):

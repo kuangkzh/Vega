@@ -1,5 +1,9 @@
 window.CATasks = {
   methods: {
+    projectLabel(pid) {
+      const p = this.projects.find(x => x.id === pid);
+      return p ? p.name : '';
+    },
     async loadTasks() {
       const params = new URLSearchParams();
       if (this.taskFilter) params.set('status', this.taskFilter);

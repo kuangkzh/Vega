@@ -5,9 +5,7 @@
   </button>
   <div class="collapse navbar-collapse" id="mainNav">
     <ul class="navbar-nav mx-auto">
-      <li class="nav-item"><a class="nav-link" :class="{active: tab==='chat'}" href="#" @click.prevent="tab='chat'">Chat</a></li>
-      <li class="nav-item"><a class="nav-link" :class="{active: tab==='code'}" href="#" @click.prevent="tab='code'; browse('.')">Code</a></li>
-      <li class="nav-item"><a class="nav-link" :class="{active: tab==='git'}" href="#" @click.prevent="tab='git'; loadGit()">Git</a></li>
+      <li class="nav-item"><a class="nav-link" :class="{active: tab==='workspace'}" href="#" @click.prevent="tab='workspace'">工作区</a></li>
       <li class="nav-item"><a class="nav-link" :class="{active: tab==='tasks'}" href="#" @click.prevent="tab='tasks'; loadTasks()">后台任务</a></li>
       <li class="nav-item"><a class="nav-link" :class="{active: tab==='settings'}" href="#" @click.prevent="tab='settings'; loadSettings()">设置</a></li>
     </ul>

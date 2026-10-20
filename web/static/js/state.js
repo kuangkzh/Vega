@@ -1,9 +1,13 @@
 window.CAState = {
   data() {
     return {
-      loading: true, tab: 'chat',
-      sessions: [], currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '',
-      inputText: '', usage: null, maxContext: 0, es: null, globalEs: null, sessionsOpen: false,
+      loading: true, tab: 'workspace',
+      projects: [], selectedProjectId: null, workspaceView: 'chat',
+      showProjectForm: false,
+      deleteProjectInput: '',
+      projectForm: { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } },
+      currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '',
+      inputText: '', usage: null, maxContext: 0, es: null, globalEs: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false, mdPreview: false,
       fileDiff: null, diffDetail: null,
       gitCurrent: '', gitErr: '',
@@ -17,6 +21,9 @@ window.CAState = {
     };
   },
   computed: {
+    currentProject() {
+      return this.projects.find(p => p.id === this.selectedProjectId) || null;
+    },
     tokenUsed() {
       if (!this.usage) return 0;
       return (this.usage.input || 0) + (this.usage.output || 0);

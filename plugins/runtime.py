@@ -211,6 +211,9 @@ class PluginContext:
     config: Dict[str, Any]
     runtime: "PluginRuntime"
     session_id: Optional[str] = None
+    project_id: Optional[str] = None
+    im_link: Any = None
+    im_config: Dict[str, Any] = field(default_factory=dict)
 
 
 class PluginRuntime:
@@ -231,6 +234,7 @@ class PluginRuntime:
         self.task_manager = task_manager
         self.im_link = im_link
         self.model_provider = model_provider or (lambda _mid=None: None)
+        self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
         self.pending: Dict[str, PendingApproval] = {}
         self.last_overflow_result: Optional[str] = None
         self._lock = threading.RLock()
@@ -239,23 +243,34 @@ class PluginRuntime:
         """该插件自己的配置：直接取 config.plugins.<name>，缺省空 dict。"""
         return (self.config.get("plugins") or {}).get(name) or {}
 
-    def visible_tools(self) -> List[Dict[str, Any]]:
+    def visible_tools(self, cwd: Optional[str] = None) -> List[Dict[str, Any]]:
         tools: List[Dict[str, Any]] = []
         for name, p in self.plugins.items():
-            if p.resolve_permission(self.plugin_config(name), {}, self.cwd) != "Denied":
+            if p.resolve_permission(self.plugin_config(name), {}, cwd or self.cwd) != "Denied":
                 tools.append(p.tool_spec())
         return tools
+
+    def _resolve_project(self, session_id: Optional[str]) -> Dict[str, Any]:
+        """按会话解析所属 project 的运行时上下文（cwd / im_link 实例 / im 配置）。"""
+        if self.project_resolver and session_id:
+            try:
+                return self.project_resolver(session_id) or {}
+            except Exception as exc:  # noqa: BLE001
+                print(f"[plugin] 解析 project 上下文失败: {exc}")
+        return {"cwd": self.cwd, "im_link": self.im_link, "im_config": (self.config or {}).get("im_link") or {}}
 
     def execute(self, plugin_name: str, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
         plugin = self.plugins.get(plugin_name)
         if plugin is None:
             return PluginResult({}, f"未知插件: {plugin_name}")
         args = args or {}
-        level = plugin.resolve_permission(self.plugin_config(plugin_name), args, self.cwd)
+        project_ctx = self._resolve_project(session_id)
+        cwd = project_ctx.get("cwd") or self.cwd
+        level = plugin.resolve_permission(self.plugin_config(plugin_name), args, cwd)
         if level == "Denied":
             return PluginResult({}, f"插件 {plugin_name} 被禁止使用 (Denied)")
         if level == "Trusted":
-            return self._invoke_plugin(plugin, args, session_id)
+            return self._invoke_plugin(plugin, args, session_id, project_ctx)
         uid = uuid.uuid4().hex
         status = "pending_agent" if level == "AgentReview" else "pending_human"
         pa = PendingApproval(uuid=uid, plugin_name=plugin_name, args=args, level=level, session_id=session_id, status=status)
@@ -267,8 +282,17 @@ class PluginRuntime:
             f'uuid="{uid}"、task_name=任务名、reason=申请理由。',
         )
 
-    def _invoke_plugin(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
-        ctx = PluginContext(cwd=self.cwd, config=self.plugin_config(plugin.name), runtime=self, session_id=session_id)
+    def _invoke_plugin(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None, project_ctx: Optional[Dict[str, Any]] = None) -> PluginResult:
+        project_ctx = project_ctx or {}
+        ctx = PluginContext(
+            cwd=project_ctx.get("cwd") or self.cwd,
+            config=self.plugin_config(plugin.name),
+            runtime=self,
+            session_id=session_id,
+            project_id=project_ctx.get("project_id"),
+            im_link=project_ctx.get("im_link"),
+            im_config=project_ctx.get("im_config") or {},
+        )
         try:
             kwargs = {k: v for k, v in args.items() if k in plugin.arg_names}
             res = plugin.fn(ctx, **kwargs)
@@ -351,19 +375,22 @@ class PluginRuntime:
 
     def _start_human_approval(self, pa: PendingApproval) -> PluginResult:
         tm = self.task_manager
+        ctx = self._resolve_project(pa.session_id)
+        project_id = ctx.get("project_id")
         params = {"uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args, "reason": pa.request_reason, "task_name": pa.task_name}
         if tm is not None and getattr(tm, "submit", None):
             task_id = tm.submit(
                 pa.task_name or pa.plugin_name, pa.session_id,
                 target=lambda: self._human_approval_target(pa),
-                params=params, tool_name=pa.plugin_name, pending=True,
+                params=params, tool_name=pa.plugin_name, pending=True, project_id=project_id,
             )
             pa.task_id = task_id
         else:
             task_id = pa.uuid
-        if self.im_link is not None and getattr(self.im_link, "notify_approval", None):
+        im = ctx.get("im_link")
+        if im is not None and getattr(im, "notify_approval", None):
             try:
-                self.im_link.notify_approval(pa)
+                im.notify_approval(pa)
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 审批通知失败: {exc}")
         return PluginResult({}, f"已提交后台人工审批（级别=HumanReview），任务标识={task_id}，等待人工批准后自动执行。")
