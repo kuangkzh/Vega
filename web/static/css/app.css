@@ -59,7 +59,7 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .navbar .nav-link.active { color: #fff; font-weight: 500; }
 
 /* 消息气泡 */
-.msg-user { background: var(--app-accent-tint); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
+.msg-user { background: var(--app-accent-tint); border-radius: 8px; padding: 8px 12px; color: var(--app-text); white-space: pre-wrap; word-break: break-word; }
 .msg-assistant { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; padding: 8px 12px; color: var(--app-text); }
 .msg-reasoning { color: var(--app-text-muted); white-space: pre-wrap; word-break: break-word; }
 /* 工具调用/结果 summary 前缀图标 */

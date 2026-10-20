@@ -11,6 +11,7 @@ window.CACore = {
       this.loading = false;
       await this.loadProjects();
       this.openGlobalStream();
+      if (this.projects.length) this.projects[0].expanded = true;
       if (!this.currentSid && this.projects.length) {
         const first = this.projects.find(p => p.sessions && p.sessions.length);
         if (first) this.selectSession(first.sessions[0].id);

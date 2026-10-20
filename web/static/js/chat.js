@@ -34,6 +34,15 @@ window.CAChat = {
         p.sessions = (p.sessions || []).sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
       }
       this.projects = list;
+      this.sortProjects();
+    },
+    projectLatestTime(p) {
+      let t = 0;
+      for (const s of (p.sessions || [])) t = Math.max(t, s.updated_at || s.created_at || 0);
+      return t;
+    },
+    sortProjects() {
+      this.projects.sort((a, b) => this.projectLatestTime(b) - this.projectLatestTime(a));
     },
     toggleProject(pid) {
       const p = this.projects.find(x => x.id === pid);
@@ -225,6 +234,7 @@ window.CAChat = {
       if (i >= 0) p.sessions[i] = sess;
       else p.sessions.push(sess);
       p.sessions.sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
+      this.sortProjects();
     },
     upsertProject(project) {
       if (project.deleted) {
@@ -243,6 +253,7 @@ window.CAChat = {
       } else {
         this.projects.push({ ...project, sessions: [], expanded: false, menuOpen: false });
       }
+      this.sortProjects();
     },
     async createProject() {
       if (!this.projectForm.path.trim()) { alert('请填写项目路径'); return; }
