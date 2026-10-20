@@ -94,8 +94,7 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
     """统一的文本行筛选：按行号区间 + 正则表达式（与关系）筛选，返回 (文本, 命中行数, 总行数)。
 
     - lines_spec：形如 "0-4,6,8,11-20"（闭区间、0 起算），可空表示全量。
-    - regexp：命中才保留的正则表达式；同时提供行号与正则时按与关系过滤。
-    - 越界行号静默取交集，不报错；正则无效时抛出 re.error。
+    - regexp：正则表达式；同时提供行号与正则时按与关系过滤。
     """
     lines = (text or "").split("\n")
     total = len(lines)
@@ -109,7 +108,7 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = ""):
         if pattern is not None and not pattern.search(ln):
             continue
         matched += 1
-        out.append(f"{i}: {ln.rstrip(chr(10))}")
+        out.append(ln)
     return "\n".join(out), matched, total
 
 
@@ -264,7 +263,7 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"写入失败: {exc}")
     created_note = "（文件不存在，已创建）" if is_new_file else ""
-    return PluginResult({"changed": True, "created": is_new_file, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）{created_note}")
+    return PluginResult({"changed": True, "is_new_file": is_new_file, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）{created_note}")
 
 
 @register_plugin(

@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import json
 import os
 import sys
 import threading
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 import jinja2
 
@@ -65,13 +64,6 @@ def default_permission(config: Dict[str, Any], _args: Dict[str, Any], _cwd: str)
     return str((config.get("permission") or {}).get("default") or DEFAULT_LEVEL)
 
 
-def _arg_names(fn: Callable[..., Any]) -> Tuple[str, ...]:
-    return tuple(
-        p.name for p in list(inspect.signature(fn).parameters.values())[1:]
-        if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
-    )
-
-
 @dataclass
 class Plugin:
     """已注册插件：函数 + 元数据 + 配置表单 schema + 权限解析 + 输出处理。"""
@@ -82,9 +74,6 @@ class Plugin:
     parameters: Dict[str, Any]
     config: Dict[str, Any]
     resolve_permission: PermissionResolver
-    arg_names: Tuple[str, ...] = ()
-    msg_template: str = ""
-    truncate: bool = True
 
     def tool_spec(self) -> Dict[str, Any]:
         return {
@@ -106,8 +95,6 @@ def register_plugin(
     parameters: Dict[str, Any],
     config: Optional[Dict[str, Any]] = None,
     resolve_permission: PermissionResolver = default_permission,
-    msg_template: Optional[str] = None,
-    truncate: bool = True,
 ):
     """函数式插件注册。
 
@@ -117,7 +104,6 @@ def register_plugin(
       可省略；缺省为 {"permission": {"type": "permission-level", "keys": ("default",)}}（单权限点 default）。
     - resolve_permission：校验逻辑 (config, args, cwd) -> level；默认 default_permission（读 permission.default）；
       文件/shell 等特殊权限点由各插件显式传入（定义在 plugins/builtin.py，与插件绑定）。
-    - msg_template / truncate：注入输出处理。
     """
     if config is None:
         config = DEFAULT_CONFIG
@@ -131,9 +117,6 @@ def register_plugin(
             parameters=parameters,
             config=config,
             resolve_permission=resolve_permission,
-            arg_names=_arg_names(fn),
-            msg_template=msg_template or "",
-            truncate=truncate,
         )
         return fn
 
@@ -181,8 +164,11 @@ def render_msg(template: str, result: Any) -> str:
 
 
 def format_tool_content(plugin_name: str, result: Any, msg: str = "") -> str:
-    """工具结果以 XML 展开，追加给模型上下文。"""
-    text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, indent=2)
+    """工具结果以 XML 展开，追加给模型上下文；纯文本统一在此加 0 起算行号。"""
+    if isinstance(result, str):
+        text = "\n".join(f"{i}: {ln}" for i, ln in enumerate(result.split("\n")))
+    else:
+        text = json.dumps(result, ensure_ascii=False, indent=2)
     parts = [f'<tool_result name="{plugin_name}">', str(text), "</tool_result>"]
     if msg:
         parts.append(str(msg))
@@ -306,15 +292,14 @@ class PluginRuntime:
             im_config=project_ctx.get("im_config") or {},
         )
         try:
-            kwargs = {k: v for k, v in args.items() if k in plugin.arg_names}
+            kwargs = {k: v for k, v in args.items() if k in plugin.parameters.get("properties", {})}
             res = plugin.fn(ctx, **kwargs)
         except Exception as exc:  # noqa: BLE001
             return PluginResult({}, f"插件执行出错: {type(exc).__name__}: {exc}")
         if not isinstance(res, PluginResult):
             res = PluginResult(res, "")
-        res.msg = render_msg(plugin.msg_template or res.msg, res.result)
-        if plugin.truncate:
-            self._handle_overflow(res)
+        res.msg = render_msg(res.msg, res.result)
+        self._handle_overflow(res)
         return res
 
     def _handle_overflow(self, res: PluginResult) -> None:
