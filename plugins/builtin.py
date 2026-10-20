@@ -215,7 +215,7 @@ def read_file(ctx, path: str, lines: str = "", regexp: str = ""):
 
 
 @register_plugin(
-    description="修改文件：search/replace（text 或 regexp 模式，可指定起始搜索行）",
+    description="修改文件：search/replace（text 或 regexp 模式，可指定起始搜索行）；文件不存在时自动创建",
     parameters={
         "type": "object",
         "properties": {
@@ -232,11 +232,12 @@ def read_file(ctx, path: str, lines: str = "", regexp: str = ""):
 )
 def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: int = 0, mode: str = "text"):
     p = _abs(ctx.cwd, str(path or ""))
+    is_new_file = not os.path.exists(p)
     try:
         with open(p, "r", encoding="utf-8") as f:
             original = f.read()
     except FileNotFoundError:
-        return PluginResult({}, f"文件不存在: {p}")
+        original = ""
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
 
@@ -250,6 +251,8 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
     offset = sum(len(ln) + 1 for ln in original.split("\n")[:start])
     matches = list(pattern.finditer(original, offset))
     if not matches:
+        if is_new_file:
+            return PluginResult({}, f"文件不存在: {p}")
         return PluginResult({}, f"未找到: {search}")
 
     first = matches[0]
@@ -260,7 +263,8 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
             f.write(new_content)
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"写入失败: {exc}")
-    return PluginResult({"changed": True, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）")
+    created_note = "（文件不存在，已创建）" if is_new_file else ""
+    return PluginResult({"changed": True, "created": is_new_file, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）{created_note}")
 
 
 @register_plugin(
