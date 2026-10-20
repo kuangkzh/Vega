@@ -8,7 +8,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from core.config import build_model, resolve_prompt
+from core.config import build_model
 from core.context import estimate_tokens, render_prompt
 from plugins.runtime import format_tool_content
 from storage.schemas import ChatSession, TokenUsage
@@ -54,7 +54,7 @@ class AgentSession:
 
     # ---------- 初始化 ----------
     def _system_content(self) -> str:
-        return render_prompt(resolve_prompt(self.config.get("system_prompt")), self.config, self.cwd)
+        return render_prompt(self.config.get("system_prompt"), self.config, self.cwd)
 
     def _insert_system_message(self) -> None:
         self.store.append_message(self.id, {"role": "system", "content": self._system_content()})

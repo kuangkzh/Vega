@@ -17,8 +17,6 @@ def render_prompt(template: str, config: Dict[str, Any], cwd: str, extra: Option
     也提供 {{ config.* }} 全量访问；访问不存在的键渲染为空串而非报错。
     extra 为额外注入的模板槽位（覆盖与 config 顶层键同名的键）。
     """
-    if not template:
-        return ""
     ctx = dict(config or {})
     ctx["config"] = config
     ctx["time"] = datetime.datetime.now().strftime(TIME_FORMAT)

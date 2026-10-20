@@ -10,14 +10,6 @@ def load_config(path: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-def resolve_prompt(raw: Any) -> str:
-    """取 prompt 文案：仅支持 JSON 中直接书写的纯文本；缺省/非文本一律返回空串。
-
-    system_prompt 与 approver.prompt 共用。
-    """
-    return raw if isinstance(raw, str) else ""
-
-
 def build_model(config: Dict[str, Any], model_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """从 config 的 models 列表 + active_model 选出模型（返回 JSON dict）。
 

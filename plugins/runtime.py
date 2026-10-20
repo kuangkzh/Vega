@@ -13,7 +13,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import jinja2
 
-from core.config import resolve_prompt
 from core.context import render_prompt
 
 DEFAULT_LEVEL = "Denied"
@@ -429,7 +428,7 @@ class PluginRuntime:
         project_ctx = self._resolve_project(pa.session_id)
         cwd = project_ctx.get("cwd") or self.cwd
         system = render_approver_prompt(
-            resolve_prompt(approver.get("prompt")),
+            approver.get("prompt"),
             self.plugins.get(pa.plugin_name),
             pa.args,
             pa.request_reason,
