@@ -159,6 +159,18 @@ pre { white-space: pre-wrap; font-size: 12px; }
   --bs-list-group-active-color: var(--app-text);
 }
 .progress-bar { background-color: #6c757d; }
+.token-progress { position: relative; }
+.compress-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--app-text-muted);
+  opacity: 0.55;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 .text-primary { color: var(--app-accent) !important; }
 
 /* 会话列表可读性 */

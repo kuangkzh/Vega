@@ -138,6 +138,7 @@ class AgentSession:
     def to_dict(self) -> Dict[str, Any]:
         entry = build_model(self.config)
         max_ctx = int((entry or {}).get("max_context") or 0)
+        ratio = float((entry or {}).get("compress_ratio") or 0.8)
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -147,6 +148,7 @@ class AgentSession:
             "status": self.status,
             "token_usage": dict(self.token_usage),
             "max_context": max_ctx,
+            "compress_ratio": ratio,
             "message_count": self.store.count_messages(self.id),
         }
 

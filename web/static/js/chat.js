@@ -98,7 +98,7 @@ window.CAChat = {
       this.workspaceView = 'chat';
       this.workspaceMenuOpen = false;
       this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
-      this.usage = s.token_usage; this.maxContext = s.max_context || 0;
+      this.usage = s.token_usage; this.maxContext = s.max_context || 0; this.compressRatio = s.compress_ratio || 0.8;
       await this.loadMessages();
       this.openStream();
     },

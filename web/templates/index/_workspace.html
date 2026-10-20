@@ -57,7 +57,7 @@
               </div>
               <div v-if="s.id===currentSid" class="d-flex align-items-center gap-2 mt-2">
                 <small class="session-meta flex-shrink-0">[[ formatTokens(tokenUsed) ]]</small>
-                <div class="progress flex-grow-1" style="height:6px"><div class="progress-bar" :style="{width: usagePct+'%'}"></div></div>
+                <div class="progress token-progress flex-grow-1" style="height:6px"><div class="progress-bar" :style="{width: usagePct+'%'}"></div><span v-if="compressThresholdPct" class="compress-mark" :style="{left: compressThresholdPct+'%'}"></span></div>
                 <small class="session-meta flex-shrink-0">[[ formatTokens(maxContext) ]]</small>
               </div>
             </li>

@@ -7,7 +7,7 @@ window.CAState = {
       deleteProjectInput: '',
       projectForm: { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } },
       currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '',
-      inputText: '', usage: null, maxContext: 0, es: null, globalEs: null,
+      inputText: '', usage: null, maxContext: 0, compressRatio: 0, es: null, globalEs: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false, mdPreview: false,
       fileDiff: null, diffDetail: null,
       gitCurrent: '', gitErr: '',
@@ -31,6 +31,11 @@ window.CAState = {
     usagePct() {
       if (!this.usage || !this.maxContext) return 0;
       return Math.min(100, Math.round(this.tokenUsed / this.maxContext * 100));
+    },
+    compressThresholdPct() {
+      const ratio = Number(this.compressRatio);
+      if (!ratio || ratio <= 0 || ratio >= 1) return 0;
+      return Math.min(100, Math.round(ratio * 100));
     },
   },
 };
