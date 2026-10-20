@@ -99,7 +99,7 @@
                   @keydown.enter="onChatEnter"
                   @input="autoResize"></textarea>
         <button class="btn btn-primary" @click="sendMessage">发送</button>
-        <button class="btn btn-outline-secondary" @click="resumeSession" :disabled="currentSession && currentSession.status==='running'">Resume</button>
+        <button class="btn btn-outline-secondary" @click="togglePause">[[ currentSession && currentSession.status==='running' ? 'Pause' : 'Resume' ]]</button>
       </div>
     </div>
   </div>

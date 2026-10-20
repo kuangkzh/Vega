@@ -180,6 +180,15 @@ window.CAChat = {
       if (!this.currentSid) return;
       await this.api('/api/sessions/' + this.currentSid + '/resume', { method:'POST' });
     },
+    async pauseSession() {
+      if (!this.currentSid) return;
+      await this.api('/api/sessions/' + this.currentSid + '/pause', { method:'POST' });
+    },
+    async togglePause() {
+      if (!this.currentSid) return;
+      if (this.currentSession && this.currentSession.status === 'running') await this.pauseSession();
+      else await this.resumeSession();
+    },
     openStream() {
       this.closeStream();
       if (!this.currentSid) return;

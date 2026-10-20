@@ -36,13 +36,18 @@ class SessionManager:
             self.projects[p.id] = p
         for s in self.store.list_sessions():
             project = self.projects.get(s.project_id)
+            # 进程重启后不存在真正在跑的会话：持久化的 running 不可信，统一重置为 paused，
+            # 否则会卡在 running 却没有线程在推理，且 resume 会因 status==running 直接返回。
+            status = "paused" if s.status == "running" else s.status
             sess = AgentSession(
                 session_id=s.id, cwd=project.path if project else self.cwd, config=self.config,
                 runtime=self.runtime, store=self.store, model_provider=self.model_provider,
                 manager=self, token_usage=s.token_usage, created_at=s.created_at, updated_at=s.updated_at,
-                status=s.status, project_id=s.project_id,
+                status=status, project_id=s.project_id,
             )
             self.sessions[s.id] = sess
+            if s.status == "running":
+                sess._set_status("paused")
             sess.start()
         for pid in list(self.projects):
             self.start_project_im(pid)
