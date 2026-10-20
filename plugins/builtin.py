@@ -273,12 +273,12 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
         "type": "object",
         "properties": {
             "url": {"type": "string", "description": "要获取的 URL"},
-            "mode": {"type": "string", "description": "返回格式：raw（默认，原始HTML）或 markdown（转为Markdown）"},
+            "mode": {"type": "string", "description": "返回格式：markdown（默认，转为Markdown）或 raw（原始HTML）"},
         },
         "required": ["url"],
     },
 )
-def web_fetch(ctx, url: str, mode: str = "raw"):
+def web_fetch(ctx, url: str, mode: str = "markdown"):
     try:
         resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
     except Exception as exc:  # noqa: BLE001
@@ -291,7 +291,7 @@ def web_fetch(ctx, url: str, mode: str = "raw"):
     else:
         content = resp.text
 
-    return PluginResult({"status_code": resp.status_code, "content": content}, f"HTTP {resp.status_code}")
+    return PluginResult(content, f"HTTP {resp.status_code}")
 
 
 @register_plugin(
