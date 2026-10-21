@@ -3,8 +3,8 @@ window.CAChat = {
     messages: { handler() { this.scrollChat(); }, deep: true },
     streamText() { this.scrollChat(); },
     streamReasoning() { this.scrollChat(); },
-    tab(v) { if (v === 'workspace' && this.workspaceView === 'chat') this.scrollChat(); },
-    workspaceView(v) { if (v === 'chat') this.scrollChat(); },
+    tab(v) { if (v === 'workspace' && this.workspaceView === 'chat') this.scrollChat(true); },
+    workspaceView(v) { if (v === 'chat') this.scrollChat(true); },
   },
   computed: {
     currentSession() {
@@ -18,11 +18,16 @@ window.CAChat = {
     },
   },
   methods: {
-    scrollChat() {
+    scrollChat(force = false) {
       this.$nextTick(() => {
         const el = this.$refs.chatScroll;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (el && (force || this.stickToBottom)) el.scrollTop = el.scrollHeight;
       });
+    },
+    onChatScroll() {
+      const el = this.$refs.chatScroll;
+      if (!el) return;
+      this.stickToBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 24;
     },
     async loadProjects() {
       const r = await this.api('/api/projects');
