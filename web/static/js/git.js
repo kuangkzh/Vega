@@ -26,12 +26,42 @@ window.CAGit = {
           branch: { lineWidth: 2, spacing: 16, label: { display: false } },
           commit: {
             spacing: 30,
-            dot: { size: 3 },
+            dot: { size: 5 },
             message: { displayHash: true, displayAuthor: false, font: 'normal 12px sans-serif' },
           },
         }),
       });
       graph.import(this.gitCommits);
+    },
+    onGraphClick(e) {
+      const hash = this.resolveCommitHash(e.target);
+      if (!hash) return;
+      this.toggleCommit({ hash });
+    },
+    resolveCommitHash(target) {
+      let el = target;
+      while (el && el.nodeType === 1) {
+        if (el.getAttribute) {
+          const href = el.getAttribute('href') || el.getAttribute('xlink:href');
+          if (href && href.charAt(0) === '#') {
+            const h = href.slice(1);
+            if (/^[0-9a-f]{40}$/i.test(h)) return h;
+          }
+          const id = el.getAttribute('id');
+          if (id && /^[0-9a-f]{40}$/i.test(id)) return id;
+        }
+        // 点中 message 文字时，向上找到同 commit 的圆点（use href="#hash"）即可定位
+        if (el.querySelector) {
+          const use = el.querySelector('use');
+          if (use) {
+            const href = use.getAttribute('href') || use.getAttribute('xlink:href');
+            const h = href ? href.slice(1) : '';
+            if (/^[0-9a-f]{40}$/i.test(h)) return h;
+          }
+        }
+        el = el.parentNode;
+      }
+      return '';
     },
     buildLogList(commits) {
       return commits.map(c => ({
@@ -120,9 +150,12 @@ window.CAGit = {
       if (!l || !l.hash) return;
       if (this.gitCommitExpand === l.hash) {
         this.gitCommitExpand = null;
+        this.gitCommitSubject = '';
         return;
       }
       this.gitCommitExpand = l.hash;
+      const c = (this.gitCommits || []).find(x => x.hash === l.hash);
+      this.gitCommitSubject = c ? c.subject : '';
       this.gitCommitLoading = true;
       this.gitCommitError = '';
       this.gitCommitFiles = [];

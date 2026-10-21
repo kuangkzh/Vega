@@ -59,7 +59,23 @@
             </div>
           </div>
           <div class="card-body p-0">
-            <div v-show="gitView === 'graph'" class="git-graph-pane" style="max-height:75vh; overflow:auto;">
+            <div v-show="gitView === 'graph'" class="git-graph-pane" style="max-height:75vh; overflow-x:hidden; overflow-y:auto;" @click="onGraphClick">
+              <div class="git-graph-detail" v-if="gitCommitExpand">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="git-hash flex-shrink-0">[[ gitCommitExpand.slice(0, 7) ]]</span>
+                  <span v-if="gitCommitSubject" class="git-graph-subject flex-grow-1">[[ gitCommitSubject ]]</span>
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-0 flex-shrink-0" @click.stop="gitCommitExpand = null" title="关闭">×</button>
+                </div>
+                <div v-if="gitCommitMeta" class="git-graph-meta">[[ gitCommitMeta.author ]] · [[ gitCommitMeta.date ]]</div>
+                <div v-if="gitCommitLoading" class="p-2 text-muted small">加载中…</div>
+                <div v-else-if="gitCommitError" class="p-2 text-danger small">[[ gitCommitError ]]</div>
+                <div v-else-if="!gitCommitFiles.length" class="p-2 text-muted small">该版本无文件变更</div>
+                <div v-for="(f, fi) in gitCommitFiles" :key="fi" class="git-file-row" @click.stop="openCommitDiff(f)" title="打开对比">
+                  <span class="git-diff-badge" :class="commitStatusInfo(f.status).cls">[[ f.status ]]</span>
+                  <span class="git-status-path text-truncate" :title="(f.status === 'R' || f.status === 'C') && f.old_path ? (f.old_path + ' → ' + f.path) : f.path">[[ f.path ]]</span>
+                  <span class="git-file-open ms-auto">对比 ↗</span>
+                </div>
+              </div>
               <div ref="gitGraph"></div>
               <div v-if="!gitLogList.length" class="p-3 text-muted small">暂无提交记录</div>
             </div>
