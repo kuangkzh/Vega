@@ -8,7 +8,6 @@ window.CAGit = {
       const lg = await (await this.api('/api/git/log?project=' + p)).json();
       this.gitErr = lg.err || '';
       this.gitCommits = lg.commits || [];
-      this.gitLogList = this.buildLogList(this.gitCommits);
       this.renderGitGraph();
       await this.loadGitStatus();
     },
@@ -64,23 +63,6 @@ window.CAGit = {
         el = el.parentNode;
       }
       return '';
-    },
-    buildLogList(commits) {
-      return commits.map(c => ({
-        hash: c.hash,
-        short: c.hash.slice(0, 7),
-        subject: c.subject,
-        decorations: this.decorationsOf(c.refs),
-      }));
-    },
-    decorationsOf(refs) {
-      const names = [];
-      const tags = [];
-      for (const r of (refs || [])) {
-        if (r.startsWith('tag: ')) tags.push(r.slice(5));
-        else names.push(r);
-      }
-      return names.concat(tags);
     },
     async loadGitStatus() {
       const p = encodeURIComponent(this.selectedProjectId || '');

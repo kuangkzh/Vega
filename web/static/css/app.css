@@ -201,31 +201,16 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .cm-s-default .cm-comment { color: #9a9184; font-style: italic; }
 
 /* ===== Git 页 ===== */
-.git-log {
-  background: var(--app-surface);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 12.5px;
-  line-height: 1.75;
-}
-.git-log-line { padding: 1px 12px; }
 .git-graph { color: var(--app-text-muted); white-space: pre; }
 .git-hash { color: var(--app-accent); }
-.git-msg { color: var(--app-text); margin-left: 4px; }
-.git-deco { margin-left: 6px; font-size: 10px; }
 .git-branch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--app-text-muted); flex-shrink: 0; }
 .git-branch-dot.current { background: var(--app-accent); }
 .git-branch-name { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 13px; min-width: 0; }
 .git-status-path { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 12.5px; min-width: 0; }
-.git-log-row { cursor: pointer; }
-.git-log-row:hover { background: var(--app-surface-2); }
-.git-log-row.open { background: var(--app-surface-2); }
-.git-chevron { display: inline-block; width: 1.1em; color: var(--app-text-muted); user-select: none; flex-shrink: 0; }
-.git-commit-detail { background: var(--app-surface-2); border-left: 3px solid var(--app-accent); padding: 2px 0; }
 .git-graph-detail { position: sticky; top: 0; z-index: 2; margin: 8px; padding: 6px 12px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); max-height: 40vh; overflow: auto; }
 .git-graph-subject { color: var(--app-text); word-break: break-word; overflow-wrap: anywhere; }
 .git-graph-meta { font-size: 12px; color: var(--app-text-muted); padding: 2px 0 4px; }
 .git-graph-pane svg use, .git-graph-pane svg text { cursor: pointer; }
-.git-commit-meta { padding: 2px 12px 4px; font-size: 12px; color: var(--app-text-muted); }
 .git-file-row { padding: 4px 12px 4px 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .git-file-row:hover { background: var(--app-accent-tint); }
 .git-file-open { font-size: 12px; color: var(--app-accent); flex-shrink: 0; }
