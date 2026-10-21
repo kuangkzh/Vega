@@ -63,7 +63,7 @@ def _diff_lines(head_content: str, work_content: str) -> dict:
 
 def _git(args, cwd):
     try:
-        r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        r = subprocess.run(["git", "-c", "core.quotepath=false"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
     return {"out": r.stdout, "err": r.stderr, "code": r.returncode}
