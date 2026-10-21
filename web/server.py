@@ -15,8 +15,10 @@ from web.sessions import build_bp as build_sessions_bp
 _GZIP_MIN_SIZE = 10 * 1024
 
 
-def create_app(config, store, manager, runtime, task_manager, cwd, config_path=None):
+def create_app(config, manager, runtime, task_manager, config_path=None):
     app = Flask(__name__)
+    # 全局 JSON 输出不转义非 ASCII，保证中文、git 输出等内容可读
+    app.json.ensure_ascii = False
 
     @app.after_request
     def _gzip_response(response):

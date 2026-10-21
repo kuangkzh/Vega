@@ -44,7 +44,7 @@ def main() -> None:
     manager = SessionManager(store, runtime, config, default_cwd, model_provider).load()
     task_manager.on_done = manager.on_task_done
 
-    app = create_app(config, store, manager, runtime, task_manager, default_cwd, config_path=config_path)
+    app = create_app(config, manager, runtime, task_manager, config_path=config_path)
     web = config.get("web") or {}
     app.run(host=web.get("host", "127.0.0.1"), port=int(web.get("port", 8000)), threaded=True, debug=False)
 
