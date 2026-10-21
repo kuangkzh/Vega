@@ -12,6 +12,8 @@ window.CAState = {
       fileDiff: null, diffDetail: null,
       gitCurrent: '', gitErr: '',
       gitBranchList: [], gitStatusList: [], gitLogList: [], gitStatusMap: {},
+      gitCommitExpand: null, gitCommitFiles: [], gitCommitMeta: null,
+      gitCommitLoading: false, gitCommitError: '',
       tasks: [], taskFilter: '', taskNameFilter: '', taskDetail: null,
       approvalReason: '',
       config: null, models: [], activeModel: null,

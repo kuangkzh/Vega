@@ -216,6 +216,25 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .git-branch-dot.current { background: var(--app-accent); }
 .git-branch-name { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 13px; min-width: 0; }
 .git-status-path { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 12.5px; min-width: 0; }
+.git-log-row { cursor: pointer; }
+.git-log-row:hover { background: var(--app-surface-2); }
+.git-log-row.open { background: var(--app-surface-2); }
+.git-chevron { display: inline-block; width: 1.1em; color: var(--app-text-muted); user-select: none; flex-shrink: 0; }
+.git-commit-detail { background: var(--app-surface-2); border-left: 3px solid var(--app-accent); padding: 2px 0; }
+.git-commit-meta { padding: 2px 12px 4px; font-size: 12px; color: var(--app-text-muted); }
+.git-file-row { padding: 4px 12px 4px 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.git-file-row:hover { background: var(--app-accent-tint); }
+.git-file-open { font-size: 12px; color: var(--app-accent); flex-shrink: 0; }
+.git-status-item { cursor: pointer; }
+.git-status-item:hover { background: var(--app-surface-2); }
+
+/* ===== Git 对比页（CodeMirror MergeView 同款编辑器）===== */
+.git-merge-view { border: 1px solid var(--app-border); border-radius: 8px; overflow: hidden; }
+.git-merge-view .CodeMirror-merge { height: auto; }
+.git-merge-view .CodeMirror-merge .CodeMirror { border: none; border-radius: 0; height: auto; min-height: 0; }
+.git-merge-view .CodeMirror-merge-l-chunk { background: rgba(200, 30, 30, 0.08); }
+.git-merge-view .CodeMirror-merge-r-chunk { background: rgba(113, 166, 119, 0.10); }
+.git-merge-view .CodeMirror-merge-gap { background: var(--app-surface-2); }
 
 /* ===== 移动端控制条 ===== */
 @media (max-width: 767.98px) {

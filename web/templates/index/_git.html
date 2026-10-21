@@ -25,9 +25,10 @@
         <div class="card-body p-0">
           <div v-if="!gitStatusList.length" class="p-3 text-muted small">✅ 工作区干净</div>
           <ul v-else class="list-group list-group-flush" style="max-height:32vh; overflow-y:auto;">
-            <li v-for="(s, i) in gitStatusList" :key="i" class="list-group-item d-flex align-items-center gap-2">
+            <li v-for="(s, i) in gitStatusList" :key="i" class="list-group-item d-flex align-items-center gap-2 git-status-item" @click="openWorkingDiff(s.path)" :title="'对比 ' + s.path">
               <span class="badge flex-shrink-0" :class="s.cls">[[ s.label ]]</span>
-              <span class="git-status-path text-truncate" :title="s.path">[[ s.path ]]</span>
+              <span class="git-status-path text-truncate flex-grow-1">[[ s.path ]]</span>
+              <span class="git-file-open">对比 ↗</span>
             </li>
           </ul>
         </div>
@@ -38,8 +39,26 @@
         <div class="card-header d-flex align-items-center gap-2"><span>提交历史</span><span class="badge text-bg-secondary">[[ gitLogList.length ]]</span></div>
         <div class="card-body p-0">
           <div class="git-log" style="max-height:75vh; overflow-y:auto;">
-            <div v-for="(l, i) in gitLogList" :key="i" class="git-log-line">
-              <span class="git-graph">[[ l.graph ]]</span><span v-if="l.hash" class="git-hash">[[ l.hash ]]</span><span v-if="l.subject" class="git-msg">[[ l.subject ]]</span><span v-for="(d, j) in l.decorations" :key="j" class="badge text-bg-secondary git-deco">[[ d ]]</span>
+            <div v-for="(l, i) in gitLogList" :key="i">
+              <div class="git-log-line git-log-row" :class="{ open: gitCommitExpand === l.hash }" @click="toggleCommit(l)">
+                <span class="git-chevron">[[ l.hash && (gitCommitExpand === l.hash ? '▾' : '▸') ]]</span>
+                <span class="git-graph">[[ l.graph ]]</span><span v-if="l.hash" class="git-hash">[[ l.hash ]]</span><span v-if="l.subject" class="git-msg">[[ l.subject ]]</span><span v-for="(d, j) in l.decorations" :key="j" class="badge text-bg-secondary git-deco">[[ d ]]</span>
+              </div>
+              <div v-if="l.hash && gitCommitExpand === l.hash" class="git-commit-detail">
+                <div v-if="gitCommitLoading" class="p-2 text-muted small">加载中…</div>
+                <div v-else-if="gitCommitError" class="p-2 text-danger small">[[ gitCommitError ]]</div>
+                <div v-else-if="!gitCommitFiles.length" class="p-2 text-muted small">该版本无文件变更</div>
+                <template v-else>
+                  <div v-if="gitCommitMeta" class="git-commit-meta">[[ gitCommitMeta.author ]] · [[ gitCommitMeta.date ]]</div>
+                  <div v-for="(f, fi) in gitCommitFiles" :key="fi">
+                    <div class="git-file-row" @click="openCommitDiff(f)" title="打开对比">
+                      <span class="git-diff-badge" :class="commitStatusInfo(f.status).cls">[[ f.status ]]</span>
+                      <span class="git-status-path text-truncate" :title="(f.status === 'R' || f.status === 'C') && f.old_path ? (f.old_path + ' → ' + f.path) : f.path">[[ f.path ]]</span>
+                      <span class="git-file-open ms-auto">对比 ↗</span>
+                    </div>
+                  </div>
+                </template>
+              </div>
             </div>
             <div v-if="!gitLogList.length" class="p-3 text-muted small">暂无提交记录</div>
           </div>

@@ -53,6 +53,10 @@ def create_app(config, store, manager, runtime, task_manager, cwd, config_path=N
     def git_page():
         return render_template("git_window.html")
 
+    @app.get("/git/diff")
+    def git_diff_page():
+        return render_template("git_diff_window.html")
+
     # ---------- 蓝图分区 ----------
     app.register_blueprint(build_auth_bp(auth))
     app.register_blueprint(build_sessions_bp(manager, auth))

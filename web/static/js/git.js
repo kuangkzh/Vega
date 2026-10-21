@@ -85,5 +85,53 @@ window.CAGit = {
       }
       return lines;
     },
+    commitStatusInfo(s) {
+      const map = {
+        A: { label: '新增', cls: 'git-badge-added' },
+        M: { label: '修改', cls: 'git-badge-modified' },
+        D: { label: '删除', cls: 'git-badge-deleted' },
+        R: { label: '重命名', cls: 'git-badge-renamed' },
+        C: { label: '复制', cls: 'git-badge-renamed' },
+        T: { label: '类型变更', cls: 'git-badge-modified' },
+      };
+      return map[s] || { label: s, cls: 'git-badge-modified' };
+    },
+    async toggleCommit(l) {
+      if (!l || !l.hash) return;
+      if (this.gitCommitExpand === l.hash) {
+        this.gitCommitExpand = null;
+        return;
+      }
+      this.gitCommitExpand = l.hash;
+      this.gitCommitLoading = true;
+      this.gitCommitError = '';
+      this.gitCommitFiles = [];
+      this.gitCommitMeta = null;
+      try {
+        const r = await this.api('/api/git/commit?hash=' + encodeURIComponent(l.hash) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
+        const d = await r.json();
+        this.gitCommitMeta = d.commit || null;
+        this.gitCommitFiles = d.files || [];
+        if (d.err) this.gitCommitError = d.err;
+      } finally {
+        this.gitCommitLoading = false;
+      }
+    },
+    openCommitDiff(f) {
+      const qs = new URLSearchParams({
+        project: this.selectedProjectId || '',
+        hash: this.gitCommitExpand || '',
+        path: f.path,
+      });
+      window.open('/git/diff?' + qs.toString(), '_blank');
+    },
+    openWorkingDiff(path) {
+      const qs = new URLSearchParams({
+        project: this.selectedProjectId || '',
+        path: path,
+        working: '1',
+      });
+      window.open('/git/diff?' + qs.toString(), '_blank');
+    },
   },
 };
