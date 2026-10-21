@@ -32,7 +32,7 @@
       </ul>
     </div>
     <div class="chat-main">
-      <div ref="chatScroll" class="card mb-2 chat-scroll">
+      <div ref="chatScroll" class="card mb-2 chat-scroll" @scroll="onChatScroll">
         <div class="card-body">
           <div v-for="(m, i) in messages" :key="i" class="mb-2 msg-wrap">
             <div v-if="m.role==='user'" class="msg-user"><b>用户：</b><span>[[ m.content ]]</span></div>
