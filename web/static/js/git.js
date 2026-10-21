@@ -7,8 +7,48 @@ window.CAGit = {
       this.gitBranchList = this.parseBranches(bb.branches || '');
       const lg = await (await this.api('/api/git/log?project=' + p)).json();
       this.gitErr = lg.err || '';
-      this.gitLogList = this.parseLog(lg.out || '');
+      this.gitCommits = lg.commits || [];
+      this.gitLogList = this.buildLogList(this.gitCommits);
+      this.renderGitGraph();
       await this.loadGitStatus();
+    },
+    renderGitGraph() {
+      const el = this.$refs.gitGraph;
+      if (!el) return;
+      el.innerHTML = '';
+      if (!this.gitCommits || !this.gitCommits.length) return;
+      const GG = window.GitgraphJS;
+      if (!GG || !GG.createGitgraph) { el.textContent = 'gitgraph 库加载失败'; return; }
+      // 默认 orientation（不设置）即垂直、最新提交在上；reverse 反而是最旧在上，故不传。
+      const graph = GG.createGitgraph(el, {
+        template: GG.templateExtend(GG.TemplateName.Metro, {
+          colors: ['#6ca3d6', '#71a677', '#c9a05c', '#dd3232', '#7a8a99', '#b08ac9', '#d98a5c'],
+          branch: { lineWidth: 2, spacing: 16, label: { display: false } },
+          commit: {
+            spacing: 30,
+            dot: { size: 3 },
+            message: { displayHash: true, displayAuthor: false, font: 'normal 12px sans-serif' },
+          },
+        }),
+      });
+      graph.import(this.gitCommits);
+    },
+    buildLogList(commits) {
+      return commits.map(c => ({
+        hash: c.hash,
+        short: c.hash.slice(0, 7),
+        subject: c.subject,
+        decorations: this.decorationsOf(c.refs),
+      }));
+    },
+    decorationsOf(refs) {
+      const names = [];
+      const tags = [];
+      for (const r of (refs || [])) {
+        if (r.startsWith('tag: ')) tags.push(r.slice(5));
+        else names.push(r);
+      }
+      return names.concat(tags);
     },
     async loadGitStatus() {
       const p = encodeURIComponent(this.selectedProjectId || '');
@@ -64,26 +104,6 @@ window.CAGit = {
         const info = map[code] || { label: code, cls: 'text-bg-secondary' };
         return { code, path, label: info.label, cls: info.cls, letter: this._letterOf(code) };
       });
-    },
-    parseLog(text) {
-      const reHash = /([0-9a-fA-F]{7,40})/;
-      const lines = [];
-      for (const raw of text.split('\n')) {
-        if (!raw) continue;
-        const m = raw.match(reHash);
-        if (!m) { lines.push({ graph: raw, hash: '', subject: '', decorations: [] }); continue; }
-        const graph = raw.slice(0, m.index);
-        const hash = m[1];
-        let rest = raw.slice(m.index + m[0].length);
-        let decorations = [];
-        const decoMatch = rest.match(/\(([^)]*)\)\s*$/);
-        if (decoMatch) {
-          rest = rest.slice(0, rest.length - decoMatch[0].length);
-          decorations = decoMatch[1].split(',').map(s => s.trim()).filter(Boolean);
-        }
-        lines.push({ graph, hash, subject: rest.trim(), decorations });
-      }
-      return lines;
     },
     commitStatusInfo(s) {
       const map = {

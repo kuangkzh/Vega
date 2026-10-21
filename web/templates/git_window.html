@@ -51,13 +51,23 @@
       </div>
       <div class="col-md-8">
         <div class="card">
-          <div class="card-header d-flex align-items-center gap-2"><span>提交历史</span><span class="badge text-bg-secondary">[[ gitLogList.length ]]</span></div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <span>提交历史</span><span class="badge text-bg-secondary">[[ gitLogList.length ]]</span>
+            <div class="btn-group btn-group-sm ms-auto" role="group">
+              <button type="button" class="btn" :class="gitView === 'graph' ? 'btn-primary' : 'btn-outline-secondary'" @click="gitView = 'graph'">图形</button>
+              <button type="button" class="btn" :class="gitView === 'list' ? 'btn-primary' : 'btn-outline-secondary'" @click="gitView = 'list'">列表</button>
+            </div>
+          </div>
           <div class="card-body p-0">
-            <div class="git-log" style="max-height:75vh; overflow-y:auto;">
+            <div v-show="gitView === 'graph'" class="git-graph-pane" style="max-height:75vh; overflow:auto;">
+              <div ref="gitGraph"></div>
+              <div v-if="!gitLogList.length" class="p-3 text-muted small">暂无提交记录</div>
+            </div>
+            <div v-show="gitView === 'list'" class="git-log" style="max-height:75vh; overflow-y:auto;">
               <div v-for="(l, i) in gitLogList" :key="i">
                 <div class="git-log-line git-log-row" :class="{ open: gitCommitExpand === l.hash }" @click="toggleCommit(l)">
                   <span class="git-chevron">[[ l.hash && (gitCommitExpand === l.hash ? '▾' : '▸') ]]</span>
-                  <span class="git-graph">[[ l.graph ]]</span><span v-if="l.hash" class="git-hash">[[ l.hash ]]</span><span v-if="l.subject" class="git-msg">[[ l.subject ]]</span><span v-for="(d, j) in l.decorations" :key="j" class="badge text-bg-secondary git-deco">[[ d ]]</span>
+                  <span v-if="l.hash" class="git-hash">[[ l.short ]]</span><span v-if="l.subject" class="git-msg">[[ l.subject ]]</span><span v-for="(d, j) in l.decorations" :key="j" class="badge text-bg-secondary git-deco">[[ d ]]</span>
                 </div>
                 <div v-if="l.hash && gitCommitExpand === l.hash" class="git-commit-detail">
                   <div v-if="gitCommitLoading" class="p-2 text-muted small">加载中…</div>
@@ -86,6 +96,7 @@
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/@gitgraph/js@1.4.0/lib/gitgraph.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/state.js') }}"></script>
 <script src="{{ url_for('static', filename='js/git.js') }}"></script>
 <script>

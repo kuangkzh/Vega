@@ -69,6 +69,55 @@ def _git(args, cwd):
     return {"out": r.stdout, "err": r.stderr, "code": r.returncode}
 
 
+def _git_graph(cwd: str) -> dict:
+    """采集提交拓扑（git2json 兼容），供前端 gitgraph 渲染。"""
+    branches = {}  # 分支名 -> commit hash
+    tags = {}      # tag 名 -> commit hash
+
+    for scope in ("refs/heads",):
+        r = _git(["for-each-ref", "--format=%(refname:short)%00%(objectname)", scope], cwd)
+        for line in (r.get("out") or "").splitlines():
+            name, _, h = line.partition("\x00")
+            if name and h:
+                branches[name] = h
+
+    r = _git(
+        ["for-each-ref",
+         "--format=%(refname:short)%00%(objecttype)%00%(objectname)%00%(*objectname)",
+         "refs/tags"],
+        cwd,
+    )
+    for line in (r.get("out") or "").splitlines():
+        parts = line.split("\x00")
+        if len(parts) < 3:
+            continue
+        name, objtype, h, peeled = parts[0], parts[1], parts[2], (parts[3] if len(parts) > 3 else "")
+        tags[name] = (peeled or h) if objtype == "tag" else h
+
+    r = _git(["log", "--all", "--format=%H%x00%P%x00%an%x00%ae%x00%s", "-200"], cwd)
+    if r.get("err") and not r.get("out"):
+        return {"commits": [], "err": r["err"]}
+    commits = []
+    for line in (r.get("out") or "").splitlines():
+        if not line:
+            continue
+        parts = line.split("\x00")
+        if len(parts) < 5:
+            continue
+        h, parents_raw, an, ae, subject = parts[0], parts[1], parts[2], parts[3], parts[4]
+        parents = parents_raw.split() if parents_raw else []
+        refs = [name for name, commit in branches.items() if commit == h]
+        refs += ["tag: " + name for name, commit in tags.items() if commit == h]
+        commits.append({
+            "hash": h,
+            "subject": subject,
+            "author": {"name": an, "email": ae},
+            "parents": parents,
+            "refs": refs,
+        })
+    return {"commits": commits}
+
+
 def _parse_name_status(text: str) -> list:
     """解析 `git diff-tree --name-status` 输出为变化文件列表。
 
@@ -244,7 +293,7 @@ def build_bp(manager) -> Blueprint:
             cwd = _cwd()
         except ValueError:
             return jsonify({"error": "project not found"}), 404
-        return jsonify(_git(["log", "--graph", "--oneline", "--all", "-30"], cwd))
+        return jsonify(_git_graph(cwd))
 
     @bp.get("/api/git/status")
     @login_required
