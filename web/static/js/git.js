@@ -50,9 +50,11 @@ window.CAGit = {
           const id = el.getAttribute('id');
           if (id && /^[0-9a-f]{40}$/i.test(id)) return id;
         }
-        // 点中 message 文字时，向上找到同 commit 的圆点（use href="#hash"）即可定位
+        // 点中 message 文字时，向上找到同 commit 的圆点（use href="#hash"）即可定位。
+        // 用 :scope > g > use 限定「当前 commit 组内的圆点」，避免在容器/空白/SVG 上
+        // 全局 querySelector('use') 误命中第一条 commit（如 becd68e 的详情）。
         if (el.querySelector) {
-          const use = el.querySelector('use');
+          const use = el.querySelector(':scope > g > use');
           if (use) {
             const href = use.getAttribute('href') || use.getAttribute('xlink:href');
             const h = href ? href.slice(1) : '';
