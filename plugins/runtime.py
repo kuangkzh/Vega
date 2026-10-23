@@ -230,14 +230,12 @@ class PluginRuntime:
         config: Dict[str, Any],
         cwd: str,
         task_manager=None,
-        im_link=None,
         model_provider: Optional[Callable[[Optional[str]], Any]] = None,
     ):
         self.plugins = load_plugins(plugins_dir)
         self.config = config or {}
         self.cwd = cwd
         self.task_manager = task_manager
-        self.im_link = im_link
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
         self.pending: Dict[str, PendingApproval] = {}
@@ -262,7 +260,7 @@ class PluginRuntime:
                 return self.project_resolver(session_id) or {}
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 解析 project 上下文失败: {exc}")
-        return {"cwd": self.cwd, "im_link": self.im_link, "im_config": (self.config or {}).get("im_link") or {}}
+        return {"cwd": self.cwd, "im_link": None, "im_config": {}}
 
     def execute(self, plugin_name: str, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
         plugin = self.plugins.get(plugin_name)

@@ -280,7 +280,7 @@ class SessionManager:
             return {
                 "cwd": self.cwd,
                 "im_link": None,
-                "im_config": (self.config or {}).get("im_link") or {},
+                "im_config": {},
             }
         project = self.get_project(sess.project_id)
         im = self._im_links.get(sess.project_id)

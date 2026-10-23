@@ -225,9 +225,6 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
         for m in cfg.get("models") or []:
             if isinstance(m, dict) and m.get("api_key"):
                 m["api_key"] = "******"
-        im = cfg.get("im_link") or {}
-        if im.get("app_secret"):
-            im["app_secret"] = "******"
         return jsonify(cfg)
 
     @app.post("/api/config")
@@ -237,9 +234,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
         for m in data.get("models") or []:
             if isinstance(m, dict) and m.get("api_key") == "******":
                 m.pop("api_key", None)
-        if isinstance(data.get("im_link"), dict) and data["im_link"].get("app_secret") == "******":
-            data["im_link"].pop("app_secret", None)
-        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "im_link", "summarizer", "include_reasoning_content")
+        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "summarizer", "include_reasoning_content")
 
         def deep_merge(a, b):
             for k, v in b.items():

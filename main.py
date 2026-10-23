@@ -39,7 +39,7 @@ def main() -> None:
     task_manager = TaskManager(store)
     runtime = PluginRuntime(
         plugins_dir, config, default_cwd,
-        task_manager=task_manager, im_link=None, model_provider=model_provider,
+        task_manager=task_manager, model_provider=model_provider,
     )
     manager = SessionManager(store, runtime, config, default_cwd, model_provider).load()
     task_manager.on_done = manager.on_task_done
