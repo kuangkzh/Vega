@@ -238,6 +238,7 @@ class AgentSession:
             if not tool_calls:
                 if self.status == "running":
                     self._set_status("complete")
+                    self._notify_im(content)
                 break
             for tc in tool_calls:
                 if self._stop or self._pause_requested:
@@ -342,6 +343,19 @@ class AgentSession:
         self.store.append_message(self.id, msg)
         self.emit({"type": "message", "message": msg})
         self._set_status("error")
+        self._notify_im(text)
+
+    def _notify_im(self, text: str) -> None:
+        """会话绑定 IM 时，把预期外停止 / 报错信息推送到所属 project 的 IM 聊天。"""
+        if self.manager is None:
+            return
+        fn = getattr(self.manager, "im_notify", None)
+        if fn is None:
+            return
+        try:
+            fn(self, text)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[agent] IM 通知失败: {exc}")
 
     # ---------- 上下文压缩 ----------
     def _maybe_compress(self) -> bool:

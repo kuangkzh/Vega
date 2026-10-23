@@ -273,6 +273,26 @@ class SessionManager:
             return
         sess.send(f"{text}（本消息来自 IM）")
 
+    def im_notify(self, sess: AgentSession, text: str) -> bool:
+        """会话绑定 project 的 IM 时，把 text 推送到该 IM 聊天；未绑定/未配置则跳过。"""
+        if not text or not str(text).strip():
+            return False
+        with self._lock:
+            bound = self._im_session_by_project.get(sess.project_id) == sess.id
+            link = self._im_links.get(sess.project_id)
+        if not bound or link is None:
+            return False
+        p = self.get_project(sess.project_id)
+        chat_id = (p.im_link or {}).get("chat_id") if p else ""
+        if not chat_id:
+            return False
+        try:
+            link.send(chat_id, str(text))
+            return True
+        except Exception as exc:  # noqa: BLE001
+            print(f"[im] 发送失败: {exc}")
+            return False
+
     def _project_context(self, session_id: Optional[str]) -> Dict[str, Any]:
         """插件运行时解析：会话 → project 的 cwd / im_link 实例 / im 配置。"""
         sess = self.get(session_id) if session_id else None
