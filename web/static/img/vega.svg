@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Vega">
+  <defs>
+    <linearGradient id="vega-grad" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.45" stop-color="#38bdf8"/>
+      <stop offset="0.72" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <path d="M128 24 Q148 108 232 128 Q148 148 128 232 Q108 148 24 128 Q108 108 128 24 Z" fill="url(#vega-grad)"/>
+  <circle cx="128" cy="128" r="10" fill="#f8fafc"/>
+</svg>

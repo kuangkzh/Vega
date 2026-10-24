@@ -47,17 +47,27 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
     def index():
         return render_template("index.html")
 
+    def _project_name(project_id):
+        p = manager.get_project(project_id or "")
+        if p is None:
+            return project_id or ""
+        return os.path.basename(p.path.rstrip("/\\")) or p.path
+
     @app.get("/code")
     def code_page():
-        return render_template("code_window.html")
+        return render_template("code_window.html", project_name=_project_name(request.args.get("project")))
 
     @app.get("/git")
     def git_page():
-        return render_template("git_window.html")
+        return render_template("git_window.html", project_name=_project_name(request.args.get("project")))
 
     @app.get("/git/diff")
     def git_diff_page():
-        return render_template("git_diff_window.html")
+        return render_template(
+            "git_diff_window.html",
+            project_name=_project_name(request.args.get("project")),
+            file_path=request.args.get("path") or "",
+        )
 
     # ---------- 蓝图分区 ----------
     app.register_blueprint(build_auth_bp(auth))
