@@ -290,6 +290,7 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .code-grid { display: flex; gap: 0.75rem; }
 .code-sidebar { width: 25%; min-width: 0; display: flex; flex-direction: column; }
 .code-file-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.code-file-list .is-git-ignored { opacity: .45; }
 .code-main { flex: 1 1 auto; min-width: 0; }
 
 @media (max-width: 767.98px) {

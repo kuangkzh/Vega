@@ -69,6 +69,21 @@ def _git(args, cwd):
     return {"out": r.stdout, "err": r.stderr, "code": r.returncode}
 
 
+def _ignored_paths(cwd: str, paths: list) -> set:
+    """返回 paths 中被 git 忽略的路径集合（相对 cwd，斜杠分隔）。"""
+    if not paths:
+        return set()
+    try:
+        # 用 bytes 写入 stdin：text 模式会把 \n 转成 \r\n，导致路径匹配不上
+        r = subprocess.run(
+            ["git", "-c", "core.quotepath=false", "check-ignore", "--stdin"],
+            cwd=cwd, input="\n".join(paths).encode("utf-8"), capture_output=True, timeout=30,
+        )
+    except Exception:  # noqa: BLE001
+        return set()
+    return {line for line in r.stdout.decode("utf-8", "replace").splitlines() if line}
+
+
 def _git_graph(cwd: str) -> dict:
     """采集提交拓扑（git2json 兼容），供前端 gitgraph 渲染。"""
     branches = {}  # 分支名 -> commit hash
@@ -189,10 +204,20 @@ def build_bp(manager) -> Blueprint:
         if not os.path.isdir(target):
             return jsonify({"error": "不是目录"}), 400
         try:
-            entries = [{"name": n, "is_dir": os.path.isdir(os.path.join(target, n))}
-                       for n in sorted(os.listdir(target))]
+            entries = []
+            for n in sorted(os.listdir(target)):
+                full = os.path.join(target, n)
+                entries.append({
+                    "name": n,
+                    "is_dir": os.path.isdir(full),
+                    "path": os.path.relpath(full, cwd).replace(os.sep, "/"),
+                })
         except Exception as exc:  # noqa: BLE001
             return jsonify({"error": str(exc)}), 400
+        entries.sort(key=lambda e: not e["is_dir"])  # 文件夹在前，组内保持原顺序
+        ignored = _ignored_paths(cwd, [e["path"] for e in entries])
+        for e in entries:
+            e["ignored"] = e.pop("path") in ignored
         return jsonify({"path": os.path.relpath(target, cwd), "entries": entries})
 
     @bp.get("/api/file")
