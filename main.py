@@ -31,6 +31,9 @@ def main() -> None:
     print(f"[Vega] 配置文件: {config_path}")
 
     store = Store(os.path.join(data_dir, "vega.db"))
+    cancelled = store.cancel_pending_approvals()
+    if cancelled:
+        print(f"[Vega] 启动清理：{cancelled} 个后台待审批任务已标记为 cancelled")
 
     def model_provider(model_id=None):
         mc = build_model(config, model_id)

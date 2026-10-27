@@ -6,6 +6,7 @@
       <option value="done">done</option>
       <option value="error">error</option>
       <option value="pending_approval">pending_approval</option>
+      <option value="cancelled">cancelled</option>
     </select>
     <input v-model="taskNameFilter" class="form-control w-auto" placeholder="按任务名筛选" @keyup.enter="loadTasks">
     <button class="btn btn-outline-secondary ms-2" @click="loadTasks">刷新</button>

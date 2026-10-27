@@ -321,6 +321,21 @@ class Store:
         return m
 
     # ---------- 后台任务 ----------
+    def cancel_pending_approvals(self) -> int:
+        """启动时清理：待审批任务依赖内存中的等待线程，重启后已失效，统一标记为 cancelled。"""
+        with self._lock:
+            conn = self._conn()
+            try:
+                cur = conn.execute(
+                    "UPDATE tasks SET status='cancelled', pending_approval=0, end_time=? "
+                    "WHERE status='pending_approval'",
+                    (time.strftime("%Y-%m-%d %H:%M:%S"),),
+                )
+                conn.commit()
+                return cur.rowcount
+            finally:
+                conn.close()
+
     def save_task(self, t: BackgroundTask) -> None:
         with self._lock:
             conn = self._conn()
