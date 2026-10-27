@@ -192,7 +192,7 @@ def render_approver_prompt(
 ) -> str:
     """渲染审批 prompt 槽位（Jinja2，复用 render_prompt）。
 
-    基础上下文与 system_prompt 一致（整个 config 平铺 + {{ config.* }} + {{ time }} / {{ cwd }}），
+    基础上下文与 system_prompt 一致（整个 config 平铺 + {{ config.* }} + {{ time }} / {{ cwd }} / {{ platform }}），
     额外提供 {{ plugin }}（可读摘要，等同 plugin.name：plugin.description）、{{ plugin.name }}、
     {{ plugin.description }}、{{ args }}（执行参数 JSON）、{{ reason }}（申请理由）。
     """

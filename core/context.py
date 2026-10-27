@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import platform
 from typing import Any, Dict, Optional
 
 from jinja2 import ChainableUndefined, Environment
@@ -11,7 +12,7 @@ _env = Environment(undefined=ChainableUndefined, keep_trailing_newline=True)
 
 
 def render_prompt(template: str, config: Dict[str, Any], cwd: str, extra: Optional[Dict[str, Any]] = None) -> str:
-    """用 Jinja2 渲染 prompt 模板，上下文为整个配置 + {{ time }} / {{ cwd }}。
+    """用 Jinja2 渲染 prompt 模板，上下文为整个配置 + {{ time }} / {{ cwd }} / {{ platform }}。
 
     配置顶层键直接平铺（如 {{ plugins.run_shell.shell_path }}），
     也提供 {{ config.* }} 全量访问；访问不存在的键渲染为空串而非报错。
@@ -21,6 +22,7 @@ def render_prompt(template: str, config: Dict[str, Any], cwd: str, extra: Option
     ctx["config"] = config
     ctx["time"] = datetime.datetime.now().strftime(TIME_FORMAT)
     ctx["cwd"] = cwd
+    ctx["platform"] = platform.system().lower()
     if extra:
         ctx.update(extra)
     return _env.from_string(template).render(**ctx)
