@@ -260,7 +260,7 @@ class PluginRuntime:
                 return self.project_resolver(session_id) or {}
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 解析 project 上下文失败: {exc}")
-        return {"cwd": self.cwd, "im_link": None, "im_config": {}}
+        return {"project_id": None, "cwd": self.cwd, "im_link": None, "im_config": {}}
 
     def execute(self, plugin_name: str, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
         plugin = self.plugins.get(plugin_name)
@@ -286,7 +286,12 @@ class PluginRuntime:
         )
 
     def _invoke_plugin(self, plugin: Plugin, args: Dict[str, Any], session_id: Optional[str] = None, project_ctx: Optional[Dict[str, Any]] = None) -> PluginResult:
-        project_ctx = project_ctx or {}
+        """调用插件：project_ctx 缺省时按 session 解析，保证 project_id / cwd / im_link 不丢失。
+
+        审批通过后的执行路径（_human_approval_target）只传 session_id，若无此兜底，
+        run_shell 等插件拿到的 ctx.project_id 为 None，创建的后台任务会脱离项目。
+        """
+        project_ctx = project_ctx or self._resolve_project(session_id)
         ctx = PluginContext(
             cwd=project_ctx.get("cwd") or self.cwd,
             config=self.plugin_config(plugin.name),

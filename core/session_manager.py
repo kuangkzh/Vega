@@ -298,6 +298,7 @@ class SessionManager:
         sess = self.get(session_id) if session_id else None
         if sess is None:
             return {
+                "project_id": None,
                 "cwd": self.cwd,
                 "im_link": None,
                 "im_config": {},
