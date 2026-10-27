@@ -40,6 +40,45 @@ window.CACode = {
     },
     browseJoin(name) { this.browse(this.browsePath === '.' ? name : this.browsePath + '/' + name); },
     browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
+    // 面包屑：把项目相对路径切成可点击段
+    pathSegments(path) {
+      let acc = '';
+      return (path || '').split('/').filter(p => p && p !== '.').map(name => {
+        acc = acc ? acc + '/' + name : name;
+        return { name, path: acc };
+      });
+    },
+    // 以 base 所在目录（或项目根）为基准，解析出项目相对路径
+    resolvePath(href, base) {
+      let raw;
+      try { raw = decodeURI(href.split('#')[0].split('?')[0]); } catch { raw = href.split('#')[0].split('?')[0]; }
+      if (!raw) return null;
+      if (raw.startsWith('/')) return raw.replace(/^\/+/, '');
+      const parts = (base || '').includes('/') ? base.split('/').slice(0, -1) : [];
+      for (const seg of raw.split('/')) {
+        if (seg === '..') parts.pop();
+        else if (seg && seg !== '.') parts.push(seg);
+      }
+      return parts.join('/');
+    },
+    // 路径分发：目录进浏览，文件进编辑器
+    goPath(path, isDir) {
+      if (!path && path !== '.') return;
+      if (isDir) { this.codeBrowseOpen = true; this.browse(path); }
+      else this.openFile(path);
+    },
+    onMdClick(e) {
+      const a = e.target.closest && e.target.closest('a');
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      if (!href || href.startsWith('#')) return;
+      if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+        if (/^https?:/i.test(href)) { e.preventDefault(); window.open(href, '_blank', 'noopener'); }
+        return;
+      }
+      e.preventDefault();
+      this.goPath(this.resolvePath(href, this.currentFilePath), href.endsWith('/'));
+    },
     async fetchBrowse(path) {
       await this.loadGitStatus();
       const r = await this.api('/api/browse?path=' + encodeURIComponent(path || '.') + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
@@ -74,6 +113,7 @@ window.CACode = {
     async openFile(path) {
       const r = await this.api('/api/file?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
+      if (d.is_dir) { this.goPath(path, true); return; }
       if (d.error) { alert(d.error); return; }
       if (d.content !== undefined) {
         this.currentFilePath = path;

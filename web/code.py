@@ -232,6 +232,8 @@ def build_bp(manager) -> Blueprint:
             target = _safe_path(cwd, rel)
         except ValueError:
             return jsonify({"error": "路径越界"}), 400
+        if os.path.isdir(target):
+            return jsonify({"path": os.path.relpath(target, cwd).replace(os.sep, "/"), "is_dir": True})
         if os.path.isfile(target) and os.path.getsize(target) > _MAX_FILE_SIZE:
             return jsonify({"error": "文件过大（>1MB），暂不支持在编辑器打开"}), 413
         try:

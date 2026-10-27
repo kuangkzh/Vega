@@ -21,6 +21,13 @@
     </button>
     <div class="code-grid">
       <div class="code-sidebar d-md-flex" :class="{ 'is-open': codeBrowseOpen }">
+        <nav class="code-breadcrumb mb-2">
+          <a href="#" @click.prevent="browse('.')">根目录</a>
+          <template v-for="s in pathSegments(browsePath)" :key="s.path">
+            <span class="text-muted mx-1">/</span>
+            <a href="#" @click.prevent="goPath(s.path, true)">[[ s.name ]]</a>
+          </template>
+        </nav>
         <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
         <ul class="list-group code-file-list">
           <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center" :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null">
@@ -41,7 +48,7 @@
             </div>
           </div>
           <textarea v-if="!mdPreview" ref="codeEditor" v-model="fileContent" class="form-control code-editor" placeholder="选择文件查看 / 编辑"></textarea>
-          <div v-else class="md-preview md-body" v-html="renderMarkdown(fileContent)"></div>
+          <div v-else class="md-preview md-body" v-html="renderMarkdown(fileContent)" @click="onMdClick"></div>
         </div></div>
       </div>
     </div>
