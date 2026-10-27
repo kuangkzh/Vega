@@ -289,10 +289,10 @@ pre { white-space: pre-wrap; font-size: 12px; }
 /* ===== Code 页：文件浏览侧栏（桌面）+ 移动端折叠 ===== */
 .code-grid { display: flex; gap: 0.75rem; }
 .code-sidebar { width: 25%; min-width: 0; display: flex; flex-direction: column; }
-.code-breadcrumb { font-size: 0.875rem; white-space: nowrap; overflow-x: auto; min-width: 0; }
+.code-breadcrumb { font-size: 1.1rem; white-space: nowrap; overflow-x: auto; min-width: 0; }
 .code-breadcrumb a { color: var(--app-accent-hover); text-decoration: none; }
 .code-breadcrumb a:hover { text-decoration: underline; }
-.code-breadcrumb-up { padding: 0 0.4rem; font-size: 0.875rem; line-height: 1.6; }
+.code-breadcrumb-up { padding: 0 0.6rem; font-size: 0.875rem; line-height: 1.6; }
 /* 路径 + 语言徽标一行：min-width:0 让面包屑可收缩滚动，不把右侧按钮挤出屏幕 */
 .code-path { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
 .code-file-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
