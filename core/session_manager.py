@@ -334,5 +334,7 @@ class SessionManager:
             "msg": msg,
         }
         content = format_tool_content(tool_name, payload, msg)
-        tool_msg = {"role": "tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content, "task_id": task.id}
+        # 异步回填没有可配对的 assistant.tool_calls，用独立 role 存储，模型请求时再按
+        # 模型配置的 tool_compat_mode 投影成 tool 或 user（见 AgentSession._to_model_messages）。
+        tool_msg = {"role": "async-tool", "tool_call_id": f"async-{task.id}", "name": tool_name, "content": content, "task_id": task.id}
         sess.receive_tool_result(tool_msg)

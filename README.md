@@ -65,7 +65,7 @@ python main.py -c config/my-config.json
 |---|---|
 | `web` | Web 服务监听 `host` / `port` / 登录 `token` |
 | `system_prompt` | 系统提示词，Jinja2 模板，可用 `{{time}}`、`{{cwd}}`、`{{plugins.xxx.yyy}}`、`{{config.*}}` 等槽位 |
-| `models` | 模型配置列表（`base_url` / `api_key` / `max_context` / `compress_ratio` / 价格等） |
+| `models` | 模型配置列表（`base_url` / `api_key` / `max_context` / `compress_ratio` / `tool_compat_mode`）|
 | `active_model` | 当前生效的模型 id |
 | `max_rounds` | 单轮工具调用最大循环次数 |
 | `retry` | 模型连接失败重试次数（默认 3） |
@@ -74,6 +74,8 @@ python main.py -c config/my-config.json
 | `plugins` | 各插件的权限配置与参数（如 `run_shell.shell_path`、`regex_list`） |
 
 > `system_prompt` 中的 `{{time}}` 会渲染为当前时间，`{{cwd}}` 会渲染为当前项目路径。
+>
+> `tool_compat_mode`（模型级，默认关闭）：后台异步任务（如 `run_shell` 的 `is_async`）完成后的结果回填没有可配对的 `tool_calls`，默认按 `tool` 消息发给模型；开启后改为以 `user` 消息发送（工具名与任务号拼在正文里），用于适配对 tool 序列做严格校验的模型（如 `deepseek-v4.1-flash-1017`）。
 
 ### 权限审批
 

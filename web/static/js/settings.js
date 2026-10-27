@@ -26,12 +26,12 @@ window.CASettings = {
     },
     newModel() {
       this.modelEdit = null;
-      this.modelForm = { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 };
+      this.modelForm = { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, tool_compat_mode:false };
       this.showModelForm = true;
     },
     editModel(m) {
       this.modelEdit = m;
-      this.modelForm = { id:m.id, base_url:m.base_url, api_key:m.api_key, max_context:m.max_context, compress_ratio:m.compress_ratio, input_price:m.input_price, output_price:m.output_price, cache_price:m.cache_price };
+      this.modelForm = { id:m.id, base_url:m.base_url, api_key:m.api_key, max_context:m.max_context, compress_ratio:m.compress_ratio, tool_compat_mode:!!m.tool_compat_mode };
       this.showModelForm = true;
     },
     async saveModel() {

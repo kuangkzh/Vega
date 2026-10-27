@@ -19,7 +19,7 @@ window.CAState = {
       approvalReason: '',
       config: null, models: [], activeModel: null,
       showModelForm: false, modelEdit: null,
-      modelForm: { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, input_price:0, output_price:0, cache_price:0 },
+      modelForm: { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, tool_compat_mode:false },
       pluginList: [],
     };
   },

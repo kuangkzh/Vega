@@ -27,9 +27,12 @@
             <div class="col-6"><label class="form-label small mb-0">API Key</label><input v-model="modelForm.api_key" class="form-control form-control-sm"></div>
             <div class="col-3"><label class="form-label small mb-0">上下文上限</label><input v-model.number="modelForm.max_context" class="form-control form-control-sm"></div>
             <div class="col-3"><label class="form-label small mb-0">压缩比例</label><input v-model.number="modelForm.compress_ratio" class="form-control form-control-sm"></div>
-            <div class="col-4"><label class="form-label small mb-0">输入价</label><input v-model.number="modelForm.input_price" class="form-control form-control-sm"></div>
-            <div class="col-4"><label class="form-label small mb-0">输出价</label><input v-model.number="modelForm.output_price" class="form-control form-control-sm"></div>
-            <div class="col-4"><label class="form-label small mb-0">cache价</label><input v-model.number="modelForm.cache_price" class="form-control form-control-sm"></div>
+            <div class="col-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input v-model="modelForm.tool_compat_mode" class="form-check-input" type="checkbox" id="tool_compat_mode">
+                <label class="form-check-label small" for="tool_compat_mode" title="开启后，后台异步任务回填的工具结果会以 user 消息发给模型，避免严格校验 tool 序列的模型（如 deepseek-v4.1-flash-1017）报错">工具兼容模式</label>
+              </div>
+            </div>
           </div>
           <div class="mt-2">
             <button class="btn btn-sm btn-primary" @click="saveModel">保存</button>

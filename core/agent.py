@@ -251,7 +251,8 @@ class AgentSession:
         content_parts: List[str] = []
         reasoning_parts: List[str] = []
         tool_calls: List[Dict[str, Any]] = []
-        messages = self._to_model_messages(self.store.load_context(self.id))
+        compat = bool((model.config or {}).get("tool_compat_mode")) if model else False
+        messages = self._to_model_messages(self.store.load_context(self.id), compat)
         for ev in model.chat_stream(messages, tools=tools):
             if ev.kind == "text":
                 content_parts.append(ev.text)
@@ -275,14 +276,34 @@ class AgentSession:
         self.emit({"type": "message", "message": dict(assistant_msg)})
         return content, tool_calls
 
-    def _to_model_messages(self, msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _to_model_messages(
+        self, msgs: List[Dict[str, Any]], tool_compat: bool = False
+    ) -> List[Dict[str, Any]]:
         """从 DB 消息行构造干净的模型请求体：剔除 id/task_id 等内部字段，保证 role 合法。
 
         include_reasoning_content 为 False 时不把 reasoning_content 回传入上下文，以节约 token。
+        tool_compat 为 True 时把异步回填的 async-tool 投影成 user：这类消息没有可配对的
+        assistant.tool_calls（tool_call_id 为伪造的 async-<task_id>），按 tool 发送会被严格
+        校验的模型直接拒绝；工具名/任务号拼进 content，存储字段保持不变。
         """
         out: List[Dict[str, Any]] = []
         include_reasoning = bool(self.config.get("include_reasoning_content", True))
         for m in msgs:
+            if m["role"] == "async-tool":
+                content = m.get("content") or ""
+                if tool_compat:
+                    header = f"【异步工具结果】工具={m.get('name') or ''}"
+                    if m.get("task_id"):
+                        header += f" 任务={m['task_id']}"
+                    out.append({"role": "user", "content": f"{header}\n{content}"})
+                else:
+                    clean: Dict[str, Any] = {"role": "tool", "content": content}
+                    if m.get("tool_call_id"):
+                        clean["tool_call_id"] = m["tool_call_id"]
+                    if m.get("name"):
+                        clean["name"] = m["name"]
+                    out.append(clean)
+                continue
             clean: Dict[str, Any] = {"role": m["role"], "content": m.get("content") or ""}
             if include_reasoning and m.get("reasoning_content"):
                 clean["reasoning_content"] = m["reasoning_content"]
