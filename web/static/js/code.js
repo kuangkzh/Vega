@@ -40,12 +40,13 @@ window.CACode = {
     },
     browseJoin(name) { this.browse(this.browsePath === '.' ? name : this.browsePath + '/' + name); },
     browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
-    // 面包屑：把项目相对路径切成可点击段
-    pathSegments(path) {
+    // 面包屑：把项目相对路径切成可点击段（hasFile=true 时最后一段视为文件名，不可点）
+    pathSegments(path, hasFile) {
+      const parts = (path || '').split('/').filter(p => p && p !== '.');
       let acc = '';
-      return (path || '').split('/').filter(p => p && p !== '.').map(name => {
+      return parts.map((name, i) => {
         acc = acc ? acc + '/' + name : name;
-        return { name, path: acc };
+        return { name, path: acc, isFile: !!hasFile && i === parts.length - 1 };
       });
     },
     // 以 base 所在目录（或项目根）为基准，解析出项目相对路径

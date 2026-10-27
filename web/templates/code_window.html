@@ -21,14 +21,16 @@
     </button>
     <div class="code-grid">
       <div class="code-sidebar d-md-flex" :class="{ 'is-open': codeBrowseOpen }">
-        <nav class="code-breadcrumb mb-2">
-          <a href="#" @click.prevent="browse('.')">根目录</a>
-          <template v-for="s in pathSegments(browsePath)" :key="s.path">
-            <span class="text-muted mx-1">/</span>
-            <a href="#" @click.prevent="goPath(s.path, true)">[[ s.name ]]</a>
-          </template>
-        </nav>
-        <button class="btn btn-sm btn-outline-secondary mb-2" @click="browse('..')">⬆ 上级目录</button>
+        <div class="d-flex align-items-center gap-1 mb-2">
+          <nav class="code-breadcrumb flex-grow-1">
+            <a href="#" @click.prevent="browse('.')">根目录</a>
+            <template v-for="s in pathSegments(browsePath)" :key="s.path">
+              <span class="text-muted mx-1">/</span>
+              <a href="#" @click.prevent="goPath(s.path, true)">[[ s.name ]]</a>
+            </template>
+          </nav>
+          <button class="btn btn-sm btn-outline-secondary code-breadcrumb-up flex-shrink-0" title="上级目录" @click="browse('..')">↑</button>
+        </div>
         <ul class="list-group code-file-list">
           <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center" :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null">
             <a href="#" class="text-decoration-none flex-grow-1 text-truncate" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
@@ -41,7 +43,18 @@
       <div class="code-main">
         <div class="card"><div class="card-body">
           <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-            <span class="text-muted text-truncate">[[ currentFilePath || '选择文件' ]] <span v-if="langLabel()" class="badge text-bg-light border ms-1">[[ langLabel() ]]</span></span>
+            <div class="d-flex align-items-center gap-1 min-w-0">
+              <nav v-if="currentFilePath" class="code-breadcrumb">
+                <a href="#" @click.prevent="browse('.')">根目录</a>
+                <template v-for="s in pathSegments(currentFilePath, true)" :key="s.path">
+                  <span class="text-muted mx-1">/</span>
+                  <span v-if="s.isFile" class="fw-semibold">[[ s.name ]]</span>
+                  <a v-else href="#" @click.prevent="goPath(s.path, true)">[[ s.name ]]</a>
+                </template>
+              </nav>
+              <span v-else class="text-muted">选择文件</span>
+              <span v-if="langLabel()" class="badge text-bg-light border flex-shrink-0">[[ langLabel() ]]</span>
+            </div>
             <div class="d-flex gap-2 flex-shrink-0">
               <button class="btn btn-sm btn-outline-secondary" v-if="isMarkdownFile" @click="toggleMdPreview">[[ mdPreview ? '源码' : '预览' ]]</button>
               <button class="btn btn-sm btn-primary" @click="saveFile" v-if="currentFilePath && !mdPreview">保存</button>
