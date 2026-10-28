@@ -65,40 +65,44 @@ class OpenAIModel(BaseModel):
         tool_calls_acc: Dict[int, Dict[str, str]] = {}
         usage_data: Optional[Dict[str, Any]] = None
 
-        for raw_line in resp.iter_lines(decode_unicode=True):
-            if not raw_line:
-                continue
-            line = raw_line.strip()
-            if not line.startswith("data:"):
-                continue
-            data_str = line[len("data:"):].strip()
-            if data_str == "[DONE]":
-                break
-            try:
-                chunk = json.loads(data_str)
-            except json.JSONDecodeError:
-                continue
-            if chunk.get("usage"):
-                usage_data = chunk["usage"]
-            choices = chunk.get("choices") or []
-            if not choices:
-                continue
-            delta = choices[0].get("delta") or {}
-            if delta.get("reasoning_content"):
-                yield StreamEvent(kind="reasoning", text=delta["reasoning_content"])
-            if delta.get("content"):
-                content_parts.append(delta["content"])
-                yield StreamEvent(kind="text", text=delta["content"])
-            for tc in delta.get("tool_calls") or []:
-                idx = int(tc.get("index", 0))
-                acc = tool_calls_acc.setdefault(idx, {"id": "", "name": "", "args": ""})
-                if tc.get("id"):
-                    acc["id"] = tc["id"]
-                fn = tc.get("function") or {}
-                if fn.get("name"):
-                    acc["name"] = fn["name"]
-                if fn.get("arguments"):
-                    acc["args"] += fn["arguments"]
+        try:
+            for raw_line in resp.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                if chunk.get("usage"):
+                    usage_data = chunk["usage"]
+                choices = chunk.get("choices") or []
+                if not choices:
+                    continue
+                delta = choices[0].get("delta") or {}
+                if delta.get("reasoning_content"):
+                    yield StreamEvent(kind="reasoning", text=delta["reasoning_content"])
+                if delta.get("content"):
+                    content_parts.append(delta["content"])
+                    yield StreamEvent(kind="text", text=delta["content"])
+                for tc in delta.get("tool_calls") or []:
+                    idx = int(tc.get("index", 0))
+                    acc = tool_calls_acc.setdefault(idx, {"id": "", "name": "", "args": ""})
+                    if tc.get("id"):
+                        acc["id"] = tc["id"]
+                    fn = tc.get("function") or {}
+                    if fn.get("name"):
+                        acc["name"] = fn["name"]
+                    if fn.get("arguments"):
+                        acc["args"] += fn["arguments"]
+        finally:
+            # 调用方 close()（如用户暂停）时立即断开连接，停止服务端继续生成
+            resp.close()
 
         tool_calls: List[Dict[str, Any]] = []
         for idx in sorted(tool_calls_acc):

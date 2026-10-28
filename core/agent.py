@@ -231,6 +231,9 @@ class AgentSession:
         while not self._stop and not self._pause_requested:
             if max_rounds and rounds >= max_rounds:
                 break
+            # 只在轮次边界插入排队输入：上一批 tool_calls 已全部执行完，tool 序列配对完整。
+            for item in self.drain_pending():
+                self._append(item)
             rounds += 1
             content, tool_calls = self._call_model()
             if self._stop or self._pause_requested:
@@ -241,8 +244,9 @@ class AgentSession:
                     self._notify_im(content)
                 break
             for tc in tool_calls:
-                if self._stop or self._pause_requested:
+                if self._stop:
                     break
+                # pause 不中断工具批次：整批跑完后由 while 条件退出，避免留下未配对的 assistant.tool_calls
                 self._execute_tool(tc)
 
     def _stream_round(self, tools: Optional[List[Dict[str, Any]]]) -> tuple:
@@ -253,19 +257,33 @@ class AgentSession:
         tool_calls: List[Dict[str, Any]] = []
         compat = bool((model.config or {}).get("tool_compat_mode")) if model else False
         messages = self._to_model_messages(self.store.load_context(self.id), compat)
-        for ev in model.chat_stream(messages, tools=tools):
-            if ev.kind == "text":
-                content_parts.append(ev.text)
-                self.emit({"type": "text", "content": ev.text})
-            elif ev.kind == "reasoning":
-                reasoning_parts.append(ev.text)
-                self.emit({"type": "reasoning", "content": ev.text})
-            elif ev.kind == "tool_calls":
-                tool_calls = ev.tool_calls
-            elif ev.kind == "usage" and ev.usage:
-                self._add_usage(ev.usage)
+        gen = model.chat_stream(messages, tools=tools)
+        interrupted = False
+        try:
+            for ev in gen:
+                if self._stop or self._pause_requested:
+                    interrupted = True
+                    break
+                if ev.kind == "text":
+                    content_parts.append(ev.text)
+                    self.emit({"type": "text", "content": ev.text})
+                elif ev.kind == "reasoning":
+                    reasoning_parts.append(ev.text)
+                    self.emit({"type": "reasoning", "content": ev.text})
+                elif ev.kind == "tool_calls":
+                    tool_calls = ev.tool_calls
+                elif ev.kind == "usage" and ev.usage:
+                    self._add_usage(ev.usage)
+        finally:
+            if interrupted:
+                gen.close()  # 关闭底层响应，终止服务端 SSE 生成
         content = "".join(content_parts)
         reasoning = "".join(reasoning_parts)
+        if interrupted:
+            # 本轮流未跑完，tool_calls 不可信：落库会留下没有 tool 响应的 assistant.tool_calls
+            tool_calls = []
+            if not content:
+                return "", []
         assistant_msg = {"role": "assistant", "content": content}
         if reasoning:
             assistant_msg["reasoning_content"] = reasoning
