@@ -37,7 +37,6 @@
               [[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]
             </a>
             <span v-if="e.statusLetters" class="git-diff-badge ms-1" :class="e.statusCls">[[ e.statusLetters ]]</span>
-            <a v-if="!e.is_dir" :href="downloadUrl(browseJoinPath(e.name))" class="code-file-download ms-1 flex-shrink-0" title="下载">⬇</a>
           </li>
         </ul>
       </div>

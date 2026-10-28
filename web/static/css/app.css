@@ -297,8 +297,6 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .code-path { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
 .code-file-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .code-file-list .is-git-ignored { opacity: .45; }
-.code-file-download { color: var(--app-text-muted); text-decoration: none; font-size: .85rem; line-height: 1; }
-.code-file-download:hover { color: var(--app-accent-hover); }
 .code-file-notice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; min-height: 40vh; border: 1px dashed var(--app-border); border-radius: 8px; }
 .code-main { flex: 1 1 auto; min-width: 0; }
 
