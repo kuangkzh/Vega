@@ -5,7 +5,7 @@ import difflib
 import os
 import subprocess
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from web.auth import login_required
 
@@ -242,6 +242,22 @@ def build_bp(manager) -> Blueprint:
         except Exception as exc:  # noqa: BLE001
             return jsonify({"error": str(exc)}), 400
         return jsonify({"path": os.path.relpath(target, cwd), "content": content})
+
+    @bp.get("/api/file/download")
+    @login_required
+    def api_download_file():
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
+        rel = request.args.get("path") or ""
+        try:
+            target = _safe_path(cwd, rel)
+        except ValueError:
+            return jsonify({"error": "路径越界"}), 400
+        if not os.path.isfile(target):
+            return jsonify({"error": "不是文件"}), 400
+        return send_file(target, as_attachment=True, download_name=os.path.basename(target))
 
     @bp.post("/api/file")
     @login_required

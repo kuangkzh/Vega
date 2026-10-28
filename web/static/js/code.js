@@ -115,15 +115,27 @@ window.CACode = {
       const r = await this.api('/api/file?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
       if (d.is_dir) { this.goPath(path, true); return; }
-      if (d.error) { alert(d.error); return; }
-      if (d.content !== undefined) {
+      if (d.error) {
+        // 无法打开（如超过 1MB）：改为在正文区提示，并保留下载入口
+        if (this.cm) { this.cm.toTextArea(); this.cm = null; }
         this.currentFilePath = path;
         this.codeBrowseOpen = false;
         this.mdPreview = false;
+        this.fileContent = '';
+        this.fileDiff = null;
+        this.fileNotice = d.error;
+        return;
+      }
+      if (d.content !== undefined) {
+        const isMd = ['md', 'markdown'].includes(this.extOf(path));
+        this.currentFilePath = path;
+        this.codeBrowseOpen = false;
+        this.fileNotice = '';
+        this.mdPreview = isMd;  // markdown 默认渲染展示
         this.fileContent = d.content;
         this.fileDiff = null;
         await this.loadFileDiff(path);
-        this.$nextTick(() => this.initEditor());
+        if (!isMd) this.$nextTick(() => this.initEditor());
       }
     },
     toggleMdPreview() {
@@ -134,6 +146,9 @@ window.CACode = {
         if (this.cm) { this.fileContent = this.cm.getValue(); this.cm.toTextArea(); this.cm = null; }
         this.mdPreview = true;
       }
+    },
+    downloadUrl(path) {
+      return '/api/file/download?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || '');
     },
     renderMarkdown(text) {
       return window.marked.parse(text || '', { gfm: true, breaks: false });
