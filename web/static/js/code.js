@@ -108,7 +108,8 @@ window.CACode = {
     async loadFileDiff(path) {
       const r = await this.api('/api/file/diff?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
-      const hasDiff = (d.lines && d.lines.some(Boolean)) || (d.deleted && d.deleted.length);
+      // 非 git 追踪的文件（含无 git 仓库的情况）没有基线版本，不展示差异
+      const hasDiff = d.tracked && ((d.lines && d.lines.some(Boolean)) || (d.deleted && d.deleted.length));
       this.fileDiff = hasDiff ? d : null;
     },
     async openFile(path) {
