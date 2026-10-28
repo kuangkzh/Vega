@@ -123,7 +123,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
             tasks = [t for t in tasks if name in (t.get("name") or "")]
         return jsonify(tasks)
 
-    @app.post("/api/tasks/<tid>/approve")
+    @app.post("/api/tasks/<path:tid>/approve")
     @login_required
     def api_task_approve(tid):
         data = request.get_json(force=True, silent=True) or {}
@@ -138,7 +138,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
         res = runtime.approve(uuid_, approved, reason)
         return jsonify(res.to_dict())
 
-    @app.get("/api/tasks/<tid>/logs")
+    @app.get("/api/tasks/<path:tid>/logs")
     @login_required
     def api_task_logs(tid):
         task = task_manager.store.get_task(tid)
