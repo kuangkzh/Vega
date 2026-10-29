@@ -129,6 +129,8 @@ window.CACode = {
       }
       if (d.content !== undefined) {
         const isMd = ['md', 'markdown'].includes(this.extOf(path));
+        // markdown 直接进预览：先释放编辑器，避免 CodeMirror 的 DOM 残留在页面上
+        if (isMd && this.cm) { this.cm.toTextArea(); this.cm = null; }
         this.currentFilePath = path;
         this.codeBrowseOpen = false;
         this.fileNotice = '';

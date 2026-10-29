@@ -369,8 +369,6 @@ pre { white-space: pre-wrap; font-size: 12px; }
   background: var(--app-surface);
   padding: 16px 20px;
   min-height: 40vh;
-  max-height: 80vh;
-  overflow-y: auto;
 }
 
 /* ===== Code 页：git 差异状态徽章 ===== */

@@ -65,8 +65,8 @@
             <div class="text-muted">[[ fileNotice ]]</div>
             <a class="btn btn-sm btn-outline-primary" :href="downloadUrl(currentFilePath)">下载</a>
           </div>
-          <textarea v-else-if="!mdPreview" ref="codeEditor" v-model="fileContent" class="form-control code-editor" placeholder="选择文件查看 / 编辑"></textarea>
-          <div v-else class="md-preview md-body" v-html="renderMarkdown(fileContent)" @click="onMdClick"></div>
+          <textarea v-show="!mdPreview && !fileNotice" ref="codeEditor" v-model="fileContent" class="form-control code-editor" placeholder="选择文件查看 / 编辑"></textarea>
+          <div v-if="mdPreview && !fileNotice" class="md-preview md-body" v-html="renderMarkdown(fileContent)" @click="onMdClick"></div>
         </div></div>
       </div>
     </div>
