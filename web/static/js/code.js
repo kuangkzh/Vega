@@ -36,7 +36,7 @@ window.CACode = {
       } else {
         this.browsePath = path;
       }
-      this.fetchBrowse(this.browsePath);
+      return this.fetchBrowse(this.browsePath);
     },
     browseJoin(name) { this.browse(this.browsePath === '.' ? name : this.browsePath + '/' + name); },
     browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
@@ -125,6 +125,7 @@ window.CACode = {
         this.fileContent = '';
         this.fileDiff = null;
         this.fileNotice = d.error;
+        this.syncCodeUrl();
         return;
       }
       if (d.content !== undefined) {
@@ -137,9 +138,18 @@ window.CACode = {
         this.mdPreview = isMd;  // markdown 默认渲染展示
         this.fileContent = d.content;
         this.fileDiff = null;
+        this.syncCodeUrl();
         await this.loadFileDiff(path);
         if (!isMd) this.$nextTick(() => this.initEditor());
       }
+    },
+    syncCodeUrl() {
+      const url = new URL(location.href);
+      if (this.selectedProjectId) url.searchParams.set('project', this.selectedProjectId);
+      else url.searchParams.delete('project');
+      if (this.currentFilePath) url.searchParams.set('path', this.currentFilePath);
+      else url.searchParams.delete('path');
+      history.replaceState(null, '', url);
     },
     toggleMdPreview() {
       if (this.mdPreview) {

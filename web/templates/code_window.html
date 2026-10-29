@@ -124,9 +124,16 @@ const app = Vue.createApp({
     const r = await fetch('/api/authed'); const d = await r.json();
     if (!d.authed) { location.href = '/login'; return; }
     this.loading = false;
-    this.selectedProjectId = new URLSearchParams(location.search).get('project') || '';
+    const q = new URLSearchParams(location.search);
+    this.selectedProjectId = q.get('project') || '';
     this.workspaceView = 'code';
-    this.$nextTick(() => this.browse('.'));
+    const path = q.get('path');
+    this.$nextTick(async () => {
+      if (!path) { this.browse('.'); return; }
+      const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '.';
+      await this.browse(dir);
+      this.openFile(path);
+    });
   },
 });
 app.mount('#app');
