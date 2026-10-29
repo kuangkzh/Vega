@@ -43,15 +43,15 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
     auth.init_app(app)
 
     # ---------- 页面 ----------
-    @app.get("/")
-    def index():
-        return render_template("index.html")
-
     def _project_name(project_id):
         p = manager.get_project(project_id or "")
         if p is None:
             return project_id or ""
         return os.path.basename(p.path.rstrip("/\\")) or p.path
+
+    @app.get("/")
+    def index():
+        return render_template("index.html", project_name=_project_name(request.args.get("project")))
 
     @app.get("/code")
     def code_page():
