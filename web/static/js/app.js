@@ -2,6 +2,7 @@ const app = Vue.createApp({
   delimiters: ['[[', ']]'],
   mixins: [
     window.CACore,
+    window.CAMarkdown,
     window.CAChat,
     window.CACode,
     window.CAGit,

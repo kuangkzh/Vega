@@ -1,12 +1,3 @@
-// marked 4.x 的 html:false 不生效，这里覆盖 html 渲染器：markdown 内的原始 HTML 一律按纯文本输出
-if (typeof window.marked !== 'undefined') {
-  window.marked.use({
-    renderer: {
-      html: (html) => String(html).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
-    },
-  });
-}
-
 window.CACode = {
   watch: {
     workspaceView(v) {
@@ -162,9 +153,6 @@ window.CACode = {
     },
     downloadUrl(path) {
       return '/api/file/download?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || '');
-    },
-    renderMarkdown(text) {
-      return window.marked.parse(text || '', { gfm: true, breaks: false });
     },
     async saveFile() {
       if (this.cm) this.fileContent = this.cm.getValue();
