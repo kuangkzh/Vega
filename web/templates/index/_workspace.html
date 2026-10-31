@@ -55,11 +55,8 @@
         <input v-model="projectForm.path" class="form-control form-control-sm mb-1" placeholder="c:\path\to\project">
         <div class="row g-1">
           <div class="col-4"><label class="form-label small mb-0">IM type</label><input v-model="projectForm.im_link.type" class="form-control form-control-sm" placeholder="feishu"></div>
-          <div class="col-4"><label class="form-label small mb-0">App ID</label><input v-model="projectForm.im_link.app_id" class="form-control form-control-sm"></div>
-          <div class="col-4"><label class="form-label small mb-0">App Secret</label><input v-model="projectForm.im_link.app_secret" class="form-control form-control-sm"></div>
+          <div class="col-8"><label class="form-label small mb-0">Chat ID</label><input v-model="projectForm.im_link.chat_id" class="form-control form-control-sm"></div>
         </div>
-        <label class="form-label small mb-0">Chat ID</label>
-        <input v-model="projectForm.im_link.chat_id" class="form-control form-control-sm mb-1">
         <div class="d-flex gap-2">
           <button class="btn btn-sm btn-primary" @click="createProject">创建</button>
           <button class="btn btn-sm btn-outline-secondary" @click="showProjectForm=false">取消</button>
@@ -133,10 +130,8 @@
           <label class="form-label small mb-0">项目路径</label>
           <input v-model="projectForm.path" class="form-control form-control-sm mb-2">
           <div class="row g-2">
-            <div class="col-3"><label class="form-label small mb-0">IM type</label><input v-model="projectForm.im_link.type" class="form-control form-control-sm" placeholder="feishu"></div>
-            <div class="col-3"><label class="form-label small mb-0">App ID</label><input v-model="projectForm.im_link.app_id" class="form-control form-control-sm"></div>
-            <div class="col-3"><label class="form-label small mb-0">App Secret</label><input v-model="projectForm.im_link.app_secret" class="form-control form-control-sm"></div>
-            <div class="col-3"><label class="form-label small mb-0">Chat ID</label><input v-model="projectForm.im_link.chat_id" class="form-control form-control-sm"></div>
+            <div class="col-6"><label class="form-label small mb-0">IM type</label><input v-model="projectForm.im_link.type" class="form-control form-control-sm" placeholder="feishu"></div>
+            <div class="col-6"><label class="form-label small mb-0">Chat ID</label><input v-model="projectForm.im_link.chat_id" class="form-control form-control-sm"></div>
           </div>
           <button class="btn btn-primary btn-sm mt-2" @click="saveProjectSettings">保存</button>
         </div></div>

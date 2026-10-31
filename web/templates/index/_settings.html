@@ -69,6 +69,14 @@
         <textarea v-model="config.summarizer.prompt" class="form-control form-control-sm" v-autosize></textarea>
       </div></div>
 
+      <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">IM（飞书）</h6></div><div class="card-body">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small mb-0">App ID</label><input v-model="config.im.feishu.app_id" class="form-control form-control-sm"></div>
+          <div class="col-6"><label class="form-label small mb-0">App Secret</label><input v-model="config.im.feishu.app_secret" class="form-control form-control-sm"></div>
+        </div>
+        <small class="text-muted">全局飞书应用凭据；各 project 在项目设置里只配置 IM type 与 Chat ID。修改后需重启进程生效（长连接不会重建）。</small>
+      </div></div>
+
       <div class="card mb-3" v-if="config"><div class="card-header"><h6 class="mb-0">插件配置</h6></div><div class="card-body">
         <div v-for="p in pluginList" :key="p.name" class="border rounded p-2 mb-2">
           <div class="small fw-bold">[[ p.name ]] <span class="text-muted fw-normal">- [[ p.description ]]</span></div>

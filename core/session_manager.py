@@ -15,6 +15,15 @@ from plugins.runtime import format_tool_content
 from storage.schemas import Project
 
 
+def _normalize_im_link(im_link: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """project 只保存渠道类型与消息目标，渠道凭据在全局配置 im 中。"""
+    im_link = im_link or {}
+    return {
+        "type": str(im_link.get("type") or "").strip(),
+        "chat_id": str(im_link.get("chat_id") or "").strip(),
+    }
+
+
 class SessionManager:
     def __init__(self, store, runtime, config: Dict[str, Any], cwd: str, model_provider):
         self.store = store
@@ -104,7 +113,7 @@ class SessionManager:
         path = os.path.abspath(path or ".")
         os.makedirs(path, exist_ok=True)
         now = time.time()
-        p = Project(id=uuid.uuid4().hex[:8], path=path, im_link=dict(im_link or {}), created_at=now, updated_at=now)
+        p = Project(id=uuid.uuid4().hex[:8], path=path, im_link=_normalize_im_link(im_link), created_at=now, updated_at=now)
         self.store.save_project(p)
         with self._lock:
             self.projects[p.id] = p
@@ -120,7 +129,7 @@ class SessionManager:
             p.path = os.path.abspath(path or ".")
             os.makedirs(p.path, exist_ok=True)
         if im_link is not None:
-            p.im_link = dict(im_link)
+            p.im_link = _normalize_im_link(im_link)
         p.updated_at = time.time()
         self.store.save_project(p)
         self.restart_project_im(project_id)
@@ -218,19 +227,18 @@ class SessionManager:
         for s in sessions:
             s.stop()
 
-    # ---------- IM 监听（每个 project 独立 im_link，一个 project 内仅一个会话监听） ----------
+    # ---------- IM 监听（project 提供 type/chat_id，连接层按渠道共享；一个 project 内仅一个会话监听） ----------
     def start_project_im(self, project_id: str) -> None:
         p = self.get_project(project_id)
         if p is None:
             return
         self.stop_project_im(project_id)
         link = None
-        if (p.im_link or {}).get("type"):
-            try:
-                link = build_im_link(p.im_link)
-            except Exception as exc:  # noqa: BLE001
-                print(f"[im] project {project_id} 构建 im_link 失败: {exc}")
-                link = None
+        try:
+            link = build_im_link(p.im_link, self.config.get("im"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"[im] project {project_id} 构建 im_link 失败: {exc}")
+            link = None
         with self._lock:
             self._im_links[project_id] = link
         if link is not None:
@@ -305,9 +313,9 @@ class SessionManager:
             }
         project = self.get_project(sess.project_id)
         im = self._im_links.get(sess.project_id)
-        if im is None and project and (project.im_link or {}).get("type"):
+        if im is None and project is not None:
             try:
-                im = build_im_link(project.im_link)
+                im = build_im_link(project.im_link, self.config.get("im"))
             except Exception:  # noqa: BLE001
                 im = None
         return {

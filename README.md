@@ -48,7 +48,7 @@ python main.py -c config/my-config.json
 `project` 是 Vega 的核心组织单元，对应一个工作目录。每个项目拥有：
 
 - **路径（`path`）**：会话、插件、代码浏览、Git 操作的工作目录，也是 `{{cwd}}` 的来源。
-- **IM 参数（`im_link`）**：每个项目独立建立 IM 连接。
+- **IM 参数（`im_link`）**：`type` + `chat_id`，指明该项目使用哪个 IM 渠道、消息发往哪个聊天；渠道凭据（`app_id` / `app_secret`）是全局配置 `im.<渠道>`。
 - **一组会话（ChatSession）**：会话归属到项目，运行时的 `cwd` 取项目路径。
 
 与项目无关的设置（模型、系统提示词、插件权限、审批器等）为全局级。
@@ -72,6 +72,7 @@ python main.py -c config/my-config.json
 | `summarizer` | 上下文压缩所用的提示词 |
 | `approver` | Agent 审批所用的模型与提示词 |
 | `plugins` | 各插件的权限配置与参数（如 `run_shell.shell_path`、`regex_list`） |
+| `im` | IM 渠道凭据，如 `im.feishu.app_id` / `im.feishu.app_secret`；进程内按渠道凭据共享一条长连接，事件按 `chat_id` 分发给各 project |
 
 > `system_prompt` 中的 `{{time}}` 会渲染为当前时间，`{{cwd}}` 会渲染为当前项目路径。
 >

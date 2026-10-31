@@ -274,7 +274,7 @@ window.CAChat = {
       if (!this.projectForm.path.trim()) { alert('请填写项目路径'); return; }
       await this.api('/api/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path: this.projectForm.path, im_link: this.projectForm.im_link }) });
       this.showProjectForm = false;
-      this.projectForm = { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } };
+      this.projectForm = { path: '', im_link: { type: 'feishu', chat_id: '' } };
       await this.loadProjects();
     },
     openProjectCode(pid) {

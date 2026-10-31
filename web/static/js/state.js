@@ -5,7 +5,7 @@ window.CAState = {
       projects: [], selectedProjectId: null, workspaceView: 'chat',
       workspaceMenuOpen: false, showProjectForm: false,
       deleteProjectInput: '',
-      projectForm: { path: '', im_link: { type: 'feishu', app_id: '', app_secret: '', chat_id: '' } },
+      projectForm: { path: '', im_link: { type: 'feishu', chat_id: '' } },
       currentSid: null, messages: [], pending: [], streamText: '', streamReasoning: '', stickToBottom: true,
       inputText: '', usage: null, maxContext: 0, compressRatio: 0, es: null, globalEs: null,
       browseEntries: [], browsePath: '.', currentFilePath: null, fileContent: '', codeBrowseOpen: false, mdPreview: false, fileNotice: '',

@@ -244,7 +244,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
         for m in data.get("models") or []:
             if isinstance(m, dict) and m.get("api_key") == "******":
                 m.pop("api_key", None)
-        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "summarizer", "include_reasoning_content")
+        allowed = ("system_prompt", "plugins", "approver", "retry", "max_rounds", "summarizer", "include_reasoning_content", "im")
 
         def deep_merge(a, b):
             for k, v in b.items():

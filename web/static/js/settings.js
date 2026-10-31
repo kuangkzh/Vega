@@ -3,6 +3,8 @@ window.CASettings = {
     async loadSettings() {
       this.config = await (await this.api('/api/config')).json();
       this.config.approver = this.config.approver || {};
+      this.config.im = this.config.im || {};
+      this.config.im.feishu = this.config.im.feishu || {};
       this.config.include_reasoning_content = this.config.include_reasoning_content !== false;
       this.pluginList = await (await this.api('/api/plugins')).json();
       const d = await (await this.api('/api/models')).json();
@@ -19,6 +21,7 @@ window.CASettings = {
         include_reasoning_content: this.config.include_reasoning_content,
         approver: this.config.approver,
         summarizer: this.config.summarizer,
+        im: this.config.im,
         plugins,
       };
       await this.api('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
