@@ -76,7 +76,9 @@ class TaskManager:
             if session_id and self.store.load_session(session_id) is None:
                 return  # 会话已删除，丢弃回填，避免重新写回过期任务
             t = self.store.get_task(task_id) or BackgroundTask(id=task_id, name=tool_name or "task", session_id=session_id)
-            t.status = "done"
+            if t.status == "running":
+                t.status = "done"  # 审批拒绝等场景已由审批流程写入终态，不能覆盖
+            t.pending_approval = False
             t.end_time = _now_str()
             t.result = {"result": result, "msg": msg}
             self.store.save_task(t)

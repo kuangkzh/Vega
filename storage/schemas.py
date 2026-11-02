@@ -87,7 +87,7 @@ class BackgroundTask:
     project_id: Optional[str] = None
     start_time: str = ""
     end_time: str = ""
-    status: str = "running"  # running | done | error | pending_approval | cancelled
+    status: str = "running"  # running | done | error | rejected | pending_approval | cancelled
     pending_approval: bool = False
     params: Dict[str, Any] = field(default_factory=dict)
     result: Dict[str, Any] = field(default_factory=dict)

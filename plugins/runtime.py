@@ -390,23 +390,27 @@ class PluginRuntime:
             return PluginResult({}, f"找不到审批申请 uuid={uuid_}")
         pa.steps.append(ApprovalStep("human", "approve" if approved else "reject", reason or ""))
         pa.status = "approved" if approved else "rejected"
-        pa.event.set()
-        # 通过则把任务从 pending_approval 标记为 running，让 UI 及时过渡
+        # 审批结论立即落库：通过 → running（让 UI 及时过渡），拒绝 → rejected（终态由 _execute 补 result/end_time）
         tm = self.task_manager
-        if approved and tm is not None and pa.task_id:
+        if tm is not None and pa.task_id:
             t = tm.store.get_task(pa.task_id)
             if t:
-                t.status = "running"
+                t.status = "running" if approved else "rejected"
                 t.pending_approval = False
                 t.end_time = ""
                 tm.store.save_task(t)
+        pa.event.set()  # 状态落库后再唤醒等待线程，避免 _execute 读到旧状态
         return PluginResult({}, "审批通过，后台自动执行。" if approved else f"审批被拒绝：{reason or '未说明理由'}")
 
     def _start_human_approval(self, pa: PendingApproval) -> PluginResult:
         tm = self.task_manager
         ctx = self._resolve_project(pa.session_id)
         project_id = ctx.get("project_id")
-        params = {"uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args, "reason": pa.request_reason, "task_name": pa.task_name}
+        params = {
+            "uuid": pa.uuid, "plugin": pa.plugin_name, "args": pa.args,
+            "reason": pa.request_reason, "task_name": pa.task_name,
+            "steps": [s.to_dict() for s in pa.steps],
+        }
         if tm is not None and getattr(tm, "submit", None):
             task_id = tm.submit(
                 pa.task_name or pa.plugin_name, pa.session_id,

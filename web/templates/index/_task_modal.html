@@ -7,11 +7,22 @@
       </div>
       <div class="modal-body">
         <div class="mb-2">
-          <span class="badge me-1" :class="taskDetail.status==='done' ? 'text-bg-success' : (taskDetail.status==='error' ? 'text-bg-danger' : (taskDetail.status==='pending_approval' ? 'text-bg-warning' : 'text-bg-secondary'))">[[ taskDetail.status ]]</span>
+          <span class="badge me-1" :class="taskDetail.status==='done' ? 'text-bg-success' : (taskDetail.status==='error' || taskDetail.status==='rejected' ? 'text-bg-danger' : (taskDetail.status==='pending_approval' ? 'text-bg-warning' : 'text-bg-secondary'))">[[ taskDetail.status ]]</span>
           <small class="text-muted">[[ taskDetail.id ]]</small>
         </div>
         <p class="mb-1"><b>执行时间：</b>[[ taskDetail.start_time ]]</p>
         <p class="mb-1" v-if="taskDetail.end_time"><b>完成时间：</b>[[ taskDetail.end_time ]]</p>
+        <template v-if="taskDetail.params && taskDetail.params.reason">
+          <h6 class="mt-3">申请理由</h6>
+          <pre>[[ taskDetail.params.reason ]]</pre>
+        </template>
+        <template v-if="taskDetail.params && taskDetail.params.steps && taskDetail.params.steps.length">
+          <h6>审批记录</h6>
+          <div v-for="(s, i) in taskDetail.params.steps" :key="i" class="mb-1">
+            <span class="badge me-1" :class="s.decision==='reject' ? 'text-bg-danger' : (s.decision==='escalate' ? 'text-bg-warning' : 'text-bg-success')">[[ s.level ]] / [[ s.decision ]]</span>
+            <span style="white-space:pre-wrap">[[ s.comment ]]</span>
+          </div>
+        </template>
         <h6 class="mt-3">入参 params</h6>
         <pre>[[ JSON.stringify(taskDetail.params, null, 2) ]]</pre>
         <h6>结果 result</h6>
