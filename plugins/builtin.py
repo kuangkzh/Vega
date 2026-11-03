@@ -125,13 +125,14 @@ def filter_regexp_matches(text: str, regexp: str, lines_spec: str = "", base_num
     - lines_spec 按当前 text 的行索引限定匹配范围（与 regexp 为与关系）。
     - base_numbers：text 每行对应的原始行号（缺省即 0 起算），用于片段前缀展示。
     - 每个片段前缀格式 "[L行:C列] 片段"：行号按 base_numbers 还原，列偏移按当前 text 计算。
-    - 零宽匹配跳过；返回 (结果文本, 匹配处数, 原始行数)。
+    - 零宽匹配跳过；返回 (结果文本, 匹配处数, 原始行数, 行号列表)，行号列表为各片段对应的原始行号。
     """
     lines = (text or "").split("\n")
     indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
     pattern = re.compile(str(regexp))
 
-    picked: list = []
+    out: list = []
+    orig_numbers: list = []
     matched = 0
     for i, ln in enumerate(lines):
         if indexes is not None and i not in indexes:
@@ -141,8 +142,9 @@ def filter_regexp_matches(text: str, regexp: str, lines_spec: str = "", base_num
                 continue
             matched += 1
             orig_no = i if base_numbers is None else base_numbers[i]
-            picked.append(f"[L{orig_no}:C{m.start()}] {m.group(0)}")
-    return "\n".join(picked), matched, len(lines)
+            out.append(f"[L{orig_no}:C{m.start()}] {m.group(0)}")
+            orig_numbers.append(orig_no)
+    return "\n".join(out), matched, len(lines), orig_numbers
 
 
 @register_plugin(
@@ -166,15 +168,15 @@ def get_overflow_result(ctx, overflow_id: str = "", lines: str = "", regexp: str
         if not str(regexp or "").strip():
             return PluginResult({}, "regexp_mode=find 需要提供 regexp")
         try:
-            picked, matched, total = filter_regexp_matches(cached.result, regexp, lines, cached.line_numbers)
+            out, matched, total, _ = filter_regexp_matches(cached.result, regexp, lines, cached.line_numbers)
         except (ValueError, re.error) as exc:
             return PluginResult({}, str(exc))
-        return PluginResult(picked, f"匹配 {matched} 处（原始共 {total} 行）")
+        return PluginResult(out, f"匹配 {matched} 处（原始共 {total} 行）")
     try:
-        picked, matched, total, orig_numbers = filter_text_lines(cached.result, lines, regexp, cached.line_numbers)
+        out, matched, total, orig_numbers = filter_text_lines(cached.result, lines, regexp, cached.line_numbers)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）", line_numbers=orig_numbers)
+    return PluginResult(out, f"匹配 {matched} 行（原始共 {total} 行）", line_numbers=orig_numbers)
 
 
 @register_plugin(
@@ -253,15 +255,15 @@ def read_file(ctx, path: str, lines: str = "", regexp: str = "", regexp_mode: st
         if not str(regexp or "").strip():
             return PluginResult({}, "regexp_mode=find 需要提供 regexp")
         try:
-            picked, matched, total = filter_regexp_matches(text, regexp, lines)
+            out, matched, total, _ = filter_regexp_matches(text, regexp, lines)
         except (ValueError, re.error) as exc:
             return PluginResult({}, str(exc))
-        return PluginResult(picked, f"匹配 {matched} 处（原始共 {total} 行）")
+        return PluginResult(out, f"匹配 {matched} 处（原始共 {total} 行）")
     try:
-        picked, matched, total, orig_numbers = filter_text_lines(text, lines, regexp)
+        out, matched, total, orig_numbers = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行", line_numbers=orig_numbers)
+    return PluginResult(out, f"共 {total} 行，匹配 {matched} 行", line_numbers=orig_numbers)
 
 
 @register_plugin(
