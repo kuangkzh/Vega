@@ -7,12 +7,35 @@ import os
 
 from flask import Flask, jsonify, render_template, request
 
+from plugins.runtime import DEFAULT_LEVEL
 from web.auth import Auth, build_bp as build_auth_bp, login_required
 from web.code import build_bp as build_code_bp
 from web.sessions import build_bp as build_sessions_bp
 
 
 _GZIP_MIN_SIZE = 10 * 1024
+
+
+def _plugin_value(plugin, runtime):
+    """插件配置值：按插件的表单 schema 补齐缺省字段。
+
+    新增插件或给插件新增配置项时，配置文件里还没有对应条目，前端表单直接读
+    p.value[field][k] 会因 undefined 报错，所以这里统一补默认值。
+    """
+    current = runtime.plugin_config(plugin.name)
+    value = dict(current)
+    for field, spec in (plugin.config or {}).items():
+        if spec.get("type") == "permission-level":
+            merged = {k: DEFAULT_LEVEL for k in spec.get("keys") or ()}
+            merged.update(current.get(field) or {})
+            value[field] = merged
+        elif spec.get("type") == "textlist":
+            merged = {k: [] for k in spec.get("keys") or ()}
+            merged.update(current.get(field) or {})
+            value[field] = merged
+        else:
+            value.setdefault(field, "")
+    return value
 
 
 def create_app(config, manager, runtime, task_manager, config_path=None):
@@ -221,7 +244,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
                 "name": p.name,
                 "description": p.description,
                 "config": p.config,
-                "value": runtime.plugin_config(p.name),
+                "value": _plugin_value(p, runtime),
             }
             for p in runtime.plugins.values()
         ]
