@@ -103,7 +103,7 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = "", base_nu
     indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
     pattern = re.compile(str(regexp or "")) if str(regexp or "").strip() else None
     out: list = []
-    numbers: list = []
+    orig_numbers: list = []
     matched = 0
     for i, ln in enumerate(lines):
         if indexes is not None and i not in indexes:
@@ -112,33 +112,69 @@ def filter_text_lines(text: str, lines_spec: str = "", regexp: str = "", base_nu
             continue
         matched += 1
         out.append(ln)
-        numbers.append(i if base_numbers is None else base_numbers[i])
+        orig_numbers.append(i if base_numbers is None else base_numbers[i])
     if indexes is None and pattern is None and base_numbers is None:
         return "\n".join(out), matched, total, None
-    return "\n".join(out), matched, total, numbers
+    return "\n".join(out), matched, total, orig_numbers
+
+
+def filter_regexp_matches(text: str, regexp: str, lines_spec: str = "", base_numbers=None):
+    """字符级匹配（regexp_mode=find）：只返回 regexp 匹配到的片段。
+
+    - 逐行匹配，不跨行。
+    - lines_spec 按当前 text 的行索引限定匹配范围（与 regexp 为与关系）。
+    - base_numbers：text 每行对应的原始行号（缺省即 0 起算），用于片段前缀展示。
+    - 每个片段前缀格式 "[L行:C列] 片段"：行号按 base_numbers 还原，列偏移按当前 text 计算。
+    - 零宽匹配跳过；返回 (结果文本, 匹配处数, 原始行数)。
+    """
+    lines = (text or "").split("\n")
+    indexes = _parse_lines_spec(lines_spec) if str(lines_spec or "").strip() else None
+    pattern = re.compile(str(regexp))
+
+    picked: list = []
+    matched = 0
+    for i, ln in enumerate(lines):
+        if indexes is not None and i not in indexes:
+            continue
+        for m in pattern.finditer(ln):
+            if m.end() == m.start():
+                continue
+            matched += 1
+            orig_no = i if base_numbers is None else base_numbers[i]
+            picked.append(f"[L{orig_no}:C{m.start()}] {m.group(0)}")
+    return "\n".join(picked), matched, len(lines)
 
 
 @register_plugin(
-    description="根据 id 获取超长结果（可按行号区间或正则筛选）",
+    description="根据 overflow_id 再次获取插件返回的超长结果（可按行号区间或正则筛选）",
     parameters={
         "type": "object",
         "properties": {
             "overflow_id": {"type": "string", "description": "超长结果的唯一标识（超长截断时返回）"},
             "lines": {"type": "string", "description": "行号索引，如 \"0-4,6,8,11-20\"（闭合区间、0 起算）"},
             "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
+            "regexp_mode": {"type": "string", "description": "regexp 模式：filter（默认，按行筛选）或 find（仅返回正则匹配的片段，在单行超长时也很有用）"},
         },
         "required": ["overflow_id"],
     },
 )
-def get_overflow_result(ctx, overflow_id: str = "", lines: str = "", regexp: str = ""):
+def get_overflow_result(ctx, overflow_id: str = "", lines: str = "", regexp: str = "", regexp_mode: str = "filter"):
     cached = ctx.runtime.overflow_results.get(overflow_id)
     if cached is None:
         return PluginResult({}, f"overflow_id={overflow_id}不存在或可能被清理")
+    if str(regexp_mode) == "find":
+        if not str(regexp or "").strip():
+            return PluginResult({}, "regexp_mode=find 需要提供 regexp")
+        try:
+            picked, matched, total = filter_regexp_matches(cached.result, regexp, lines, cached.line_numbers)
+        except (ValueError, re.error) as exc:
+            return PluginResult({}, str(exc))
+        return PluginResult(picked, f"匹配 {matched} 处（原始共 {total} 行）")
     try:
-        picked, matched, total, numbers = filter_text_lines(cached.result, lines, regexp, cached.line_numbers)
+        picked, matched, total, orig_numbers = filter_text_lines(cached.result, lines, regexp, cached.line_numbers)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）", line_numbers=numbers)
+    return PluginResult(picked, f"匹配 {matched} 行（原始共 {total} 行）", line_numbers=orig_numbers)
 
 
 @register_plugin(
@@ -192,31 +228,40 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
 
 
 @register_plugin(
-    description="读入一个文件的内容（可按行号区间或正则筛选，返回附行号）",
+    description="读入一个文件的内容（可按行号区间或正则筛选，返回附行号；regexp_mode=find 时返回正则匹配到的片段）",
     parameters={
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "文件路径（相对cwd或绝对）"},
             "lines": {"type": "string", "description": "行号索引，如 \"0-4,6,8,11-20\"（闭合区间、0 起算）"},
             "regexp": {"type": "string", "description": "只返回匹配该正则的行；同时给行号时按与关系再过滤"},
+            "regexp_mode": {"type": "string", "description": "regexp 模式：filter（默认，按行筛选）或 find（仅返回正则匹配的片段，在单行超长时也很有用）"},
         },
         "required": ["path"],
     },
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
     resolve_permission=file_permission,
 )
-def read_file(ctx, path: str, lines: str = "", regexp: str = ""):
+def read_file(ctx, path: str, lines: str = "", regexp: str = "", regexp_mode: str = "filter"):
     p = _abs(ctx.cwd, str(path or ""))
     try:
         with open(p, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     except Exception as exc:  # noqa: BLE001
         return PluginResult({}, f"读取失败: {exc}")
+    if str(regexp_mode) == "find":
+        if not str(regexp or "").strip():
+            return PluginResult({}, "regexp_mode=find 需要提供 regexp")
+        try:
+            picked, matched, total = filter_regexp_matches(text, regexp, lines)
+        except (ValueError, re.error) as exc:
+            return PluginResult({}, str(exc))
+        return PluginResult(picked, f"匹配 {matched} 处（原始共 {total} 行）")
     try:
-        picked, matched, total, numbers = filter_text_lines(text, lines, regexp)
+        picked, matched, total, orig_numbers = filter_text_lines(text, lines, regexp)
     except ValueError as exc:
         return PluginResult({}, str(exc))
-    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行", line_numbers=numbers)
+    return PluginResult(picked, f"共 {total} 行，匹配 {matched} 行", line_numbers=orig_numbers)
 
 
 @register_plugin(
