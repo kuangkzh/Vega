@@ -407,6 +407,7 @@ def get_project_brief(
         "[git diff --stat]\n" + _git_output(root, "diff", "--stat"),
         f"[git log --oneline -{log_lines}]\n" + _git_output(root, "log", "--oneline", f"-{log_lines}"),
     ]
+    sections = sections[:2] if 'fatal: not a git repository' in sections[1] else sections
     return PluginResult("\n\n".join(sections), "")
 
 
