@@ -87,6 +87,12 @@
         ]
       }
     },
+    "project_status": {
+      "permission": {
+        "cwd": "Trusted",
+        "external": "AgentReview"
+      }
+    },
     "web_fetch": {
       "permission": {
         "default": "Trusted"

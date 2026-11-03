@@ -272,6 +272,97 @@ def edit_file(ctx, path: str, search: str = "", replace: str = "", start_line: i
     return PluginResult({"changed": True, "is_new_file": is_new_file, "path": p}, f"已修改第一处（共找到 {len(matches)} 处）{created_note}")
 
 
+_TREE_BRANCH = "├── "
+_TREE_LAST = "└── "
+_TREE_PIPE = "│   "
+_TREE_BLANK = "    "
+
+
+def _count_items(path: str) -> int:
+    with os.scandir(path) as it:
+        return sum(1 for _ in it)
+
+
+def _render_tree(root: str, depth: int, max_entries: int, exclude: "re.Pattern") -> str:
+    """渲染目录树：命中 exclude（匹配相对路径）或超出 depth 的目录只标注不展开。
+
+    max_entries 为 0 表示按层取默认值（首层 30，其余层 10）。
+    """
+    lines = ["./"]
+
+    def walk(path: str, level: int, prefix: str, rel: str) -> None:
+        limit = max_entries or (30 if level == 0 else 10)
+        with os.scandir(path) as it:
+            entries = sorted(it, key=lambda e: (not e.is_dir(follow_symlinks=False), e.name.lower()))
+        shown = entries[:limit]
+        for i, entry in enumerate(shown):
+            last = i == len(shown) - 1 and len(shown) == len(entries)
+            connector = _TREE_LAST if last else _TREE_BRANCH
+            name = entry.name
+            if not entry.is_dir(follow_symlinks=False):
+                lines.append(prefix + connector + name)
+                continue
+            child_rel = f"{rel}/{name}" if rel else name
+            if exclude.search(child_rel) or level + 1 >= depth:
+                lines.append(f"{prefix}{connector}{name}/  (未展开，包含 {_count_items(entry.path)} 项)")
+            else:
+                lines.append(prefix + connector + name + "/")
+                walk(entry.path, level + 1, prefix + (_TREE_BLANK if last else _TREE_PIPE), child_rel)
+        if len(entries) > len(shown):
+            lines.append(f"{prefix}{_TREE_LAST}(共 {len(entries)} 项，{len(entries) - len(shown)} 项已折叠)")
+
+    walk(root, 0, "", "")
+    return "\n".join(lines)
+
+
+def _git_output(cwd: str, *args: str) -> str:
+    try:
+        proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+    except FileNotFoundError:
+        return "git 不可用"
+    out = (proc.stdout or "").rstrip("\n")
+    if out.strip():
+        return out
+    return (proc.stderr or "").strip() or "(无输出)"
+
+
+@register_plugin(
+    description="获取项目状态，一次性返回目录树和`git status --short` & `git diff --stat` & `git log --oneline`的结果",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "目录树起始路径（相对或绝对路径，默认 .）"},
+            "tree_depth": {"type": "integer", "description": "目录树最大展开层级（默认 3）"},
+            "tree_max_entries": {"type": "integer", "description": "目录树子项展开上限（不指定时首层 30、其余层 10）"},
+            "exclude_regexp": {"type": "string", "description": "目录树中不展开的目录路径正则（相对起始路径匹配，默认 \\..*|__pycache__|node_modules|build|dist）"},
+            "git_log_lines": {"type": "integer", "description": "git log 展示条数（默认 5）"},
+        },
+    },
+    config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
+    resolve_permission=file_permission,
+)
+def get_project_status(
+    ctx,
+    path: str = ".",
+    tree_depth: int = 3,
+    tree_max_entries: int = 0,
+    exclude_regexp: str = r"\..*|__pycache__|node_modules|build|dist",
+    git_log_lines: int = 5,
+):
+    root = _abs(ctx.cwd, str(path or "."))
+    depth = int(tree_depth)
+    max_entries = int(tree_max_entries or 0)
+    log_lines = int(git_log_lines)
+    exclude = re.compile(str(exclude_regexp))
+    sections = [
+        "[目录树]\n" + _render_tree(root, depth, max_entries, exclude),
+        "[git status --short]\n" + _git_output(ctx.cwd, "status", "--short"),
+        "[git diff --stat]\n" + _git_output(ctx.cwd, "diff", "--stat"),
+        f"[git log --oneline -{log_lines}]\n" + _git_output(ctx.cwd, "log", "--oneline", f"-{log_lines}"),
+    ]
+    return PluginResult("\n\n".join(sections), "")
+
+
 @register_plugin(
     description="获取指定 URL 的内容",
     parameters={
