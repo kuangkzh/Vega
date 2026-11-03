@@ -374,12 +374,12 @@ def _git_output(cwd: str, *args: str) -> str:
 
 
 @register_plugin(
-    description="获取项目状态，一次性返回目录树和`git status --short` & `git diff --stat` & `git log --oneline`的结果",
+    description="获取项目简要概况，返回目录树和git状态，相当于一次执行了`ls -lR` & `git status --short` & `git diff --stat` & `git log --oneline`，推荐在不了解项目概况时首次执行",
     parameters={
         "type": "object",
         "properties": {
-            "path": {"type": "string", "description": "目录树起始路径（相对或绝对路径，默认 .）"},
-            "tree_depth": {"type": "integer", "description": "目录树最大展开层级（默认 3）"},
+            "path": {"type": "string", "description": "路径（相对cwd的路径或绝对路径，默认 .）"},
+            "tree_depth": {"type": "integer", "description": "目录树展开层级（默认 3）"},
             "tree_max_entries": {"type": "integer", "description": "目录树子项展开上限（不指定时首层 30、其余层 10）"},
             "exclude_regexp": {"type": "string", "description": "目录树中不展开的目录路径正则（相对起始路径匹配，默认 \\..*|__pycache__|node_modules|build|dist）"},
             "git_log_lines": {"type": "integer", "description": "git log 展示条数（默认 5）"},
@@ -388,7 +388,7 @@ def _git_output(cwd: str, *args: str) -> str:
     config={"permission": {"type": "permission-level", "keys": ("cwd", "external")}},
     resolve_permission=file_permission,
 )
-def get_project_status(
+def get_project_brief(
     ctx,
     path: str = ".",
     tree_depth: int = 3,
@@ -403,9 +403,9 @@ def get_project_status(
     exclude = re.compile(str(exclude_regexp))
     sections = [
         "[目录树]\n" + _render_tree(root, depth, max_entries, exclude),
-        "[git status --short]\n" + _git_output(ctx.cwd, "status", "--short"),
-        "[git diff --stat]\n" + _git_output(ctx.cwd, "diff", "--stat"),
-        f"[git log --oneline -{log_lines}]\n" + _git_output(ctx.cwd, "log", "--oneline", f"-{log_lines}"),
+        "[git status --short]\n" + _git_output(root, "status", "--short"),
+        "[git diff --stat]\n" + _git_output(root, "diff", "--stat"),
+        f"[git log --oneline -{log_lines}]\n" + _git_output(root, "log", "--oneline", f"-{log_lines}"),
     ]
     return PluginResult("\n\n".join(sections), "")
 

@@ -87,7 +87,7 @@
         ]
       }
     },
-    "project_status": {
+    "get_project_brief": {
       "permission": {
         "cwd": "Trusted",
         "external": "AgentReview"

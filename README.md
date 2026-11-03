@@ -97,7 +97,7 @@ python main.py -c config/my-config.json
 | `run_shell` | 通过 bash 执行 shell 命令，`is_async=true` 时切换后台异步执行 |
 | `read_file` | 读入文件内容（可按行号区间 / 正则筛选，返回附行号；`regexp_mode=find` 返回正则匹配到的片段） |
 | `edit_file` | 修改文件（search/replace，text 或 regexp 模式） |
-| `project_status` | 获取项目状态：目录树（`exclude_path_regexp` 命中与超深目录只标注不展开、单目录超限折叠）+ `git status --short` / `git diff --stat` / `git log --oneline` |
+| `get_project_brief` | 获取项目简要概况，返回目录树和git状态 |
 | `web_fetch` | 获取指定 URL 内容（Markdown 或原始 HTML） |
 | `request_approval` | 以审批 uuid 发起权限审批，通过后自动执行 |
 | `send_im` | 向配置的 IM 接收目标发送消息 |
