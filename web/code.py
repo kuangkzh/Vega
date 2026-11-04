@@ -109,7 +109,10 @@ def _git_graph(cwd: str) -> dict:
         name, objtype, h, peeled = parts[0], parts[1], parts[2], (parts[3] if len(parts) > 3 else "")
         tags[name] = (peeled or h) if objtype == "tag" else h
 
-    r = _git(["log", "--all", "--format=%H%x00%P%x00%an%x00%ae%x00%s", "-200"], cwd)
+    # 只用分支/标签/远程跟踪分支，不用 --all：--all 会把 refs/cline/checkpoints、
+    # refs/stash 这类工具内部 ref 的提交也带出来，而这些 ref 不在上面的 refs 映射里，
+    # 前端 gitgraph 会把这些提交归入同一条“无归属”分支并串错父链。
+    r = _git(["log", "--branches", "--tags", "--remotes", "--format=%H%x00%P%x00%an%x00%ae%x00%s", "-200"], cwd)
     if r.get("err") and not r.get("out"):
         return {"commits": [], "err": r["err"]}
     commits = []
