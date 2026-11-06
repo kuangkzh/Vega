@@ -166,14 +166,37 @@ def render_msg(template: str, result: Any) -> str:
     return _MSG_ENV.from_string(template).render(result=result)
 
 
+def _xml_tag(key: Any) -> str:
+    """字段名 → 合法 XML 标签名：非法字符换 _，非法首字符前补 _。"""
+    tag = re.sub(r"[^\w.\-]", "_", str(key))
+    return tag if tag and (tag[0].isalpha() or tag[0] == "_") else "_" + tag
+
+
+def _render_fields(result: Dict[str, Any]) -> str:
+    """字典结果展开为「一层字段一个标签」；嵌套的 dict / list 值在标签内用紧凑 JSON。"""
+    fields = []
+    for key, value in result.items():
+        if isinstance(value, (dict, list)):
+            inner = json.dumps(value, ensure_ascii=False)
+        elif value is None:
+            inner = ""
+        else:
+            inner = str(value)
+        tag = _xml_tag(key)
+        fields.append(f"<{tag}>{inner}</{tag}>")
+    return "\n".join(fields)
+
+
 def format_tool_content(plugin_name: str, result: Any, msg: str = "", line_numbers: Optional[List[int]] = None) -> str:
-    """工具结果以 XML 展开，追加给模型上下文；纯文本统一在此加行号。"""
+    """工具结果以 XML 展开，追加给模型上下文；纯文本统一在此加行号，dict 结果展开一层字段。"""
     if isinstance(result, str):
         lines = result.split("\n")
         if line_numbers is not None:
             text = "\n".join(f"{n}: {ln}" for n, ln in zip(line_numbers, lines))
         else:
             text = "\n".join(f"{i}: {ln}" for i, ln in enumerate(lines))
+    elif isinstance(result, dict) and result:
+        text = _render_fields(result)
     else:
         text = json.dumps(result, ensure_ascii=False, indent=2)
     parts = [f'<tool_result name="{plugin_name}">', str(text), "</tool_result>"]
