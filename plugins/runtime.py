@@ -166,12 +166,6 @@ def render_msg(template: str, result: Any) -> str:
     return _MSG_ENV.from_string(template).render(result=result)
 
 
-def _xml_tag(key: Any) -> str:
-    """字段名 → 合法 XML 标签名：非法字符换 _，非法首字符前补 _。"""
-    tag = re.sub(r"[^\w.\-]", "_", str(key))
-    return tag if tag and (tag[0].isalpha() or tag[0] == "_") else "_" + tag
-
-
 def _render_fields(result: Dict[str, Any]) -> str:
     """字典结果展开为「一层字段一个标签」；嵌套的 dict / list 值在标签内用紧凑 JSON。"""
     fields = []
@@ -182,8 +176,7 @@ def _render_fields(result: Dict[str, Any]) -> str:
             inner = ""
         else:
             inner = str(value)
-        tag = _xml_tag(key)
-        fields.append(f"<{tag}>{inner}</{tag}>")
+        fields.append(f"<{key}>{inner}</{key}>")
     return "\n".join(fields)
 
 
