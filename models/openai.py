@@ -60,6 +60,9 @@ class OpenAIModel(BaseModel):
             return resp
 
         resp = retry_call(_do, attempts=self._attempts())
+        # SSE 规范规定字节流必须是 UTF-8，但部分服务（如 llama.cpp）响应头只写
+        # text/event-stream 不带 charset，requests 会按 ISO-8859-1 解码导致中文乱码
+        resp.encoding = "utf-8"
 
         content_parts: List[str] = []
         tool_calls_acc: Dict[int, Dict[str, str]] = {}
