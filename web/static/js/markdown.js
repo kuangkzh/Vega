@@ -18,6 +18,20 @@ if (typeof window.marked !== 'undefined') {
   });
 }
 
+// marked 4.x 的 gfm 删除线规则允许单个 ~ 作分隔符（/^(~~?).../），会把 600~700、1.0~1.1B
+// 这类区间写法误判成删除线；这里收紧为只认 ~~ ... ~~
+if (typeof window.marked !== 'undefined') {
+  window.marked.use({
+    tokenizer: {
+      del(src) {
+        const m = /^~~(?=[^\s~])([\s\S]*?[^\s~])~~(?=[^~]|$)/.exec(src);
+        if (m) return { type: 'del', raw: m[0], text: m[1], tokens: this.lexer.inlineTokens(m[1]) };
+        // 返回 undefined（而非 false）：单 ~ 不再当分隔符，也不回落到内置实现，交给后续规则按纯文本处理
+      },
+    },
+  });
+}
+
 // 公式交给 KaTeX：$$...$$ 块级/行内，$...$ 行内；katex 未加载时保持原样文本
 if (typeof window.marked !== 'undefined' && window.katex) {
   const render = (tex, displayMode) => window.katex.renderToString(tex, { displayMode, throwOnError: false });
