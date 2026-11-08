@@ -1,8 +1,19 @@
+// 图片地址解析器：渲染期间由 renderMarkdown 注入，用于把相对路径映射到文件读取接口
+let imageResolver = null;
+
+const escapeAttr = (s) => String(s === null || s === undefined ? '' : s)
+  .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 // marked 4.x 的 html:false 不生效，这里覆盖 html 渲染器：markdown 内的原始 HTML 一律按纯文本输出
 if (typeof window.marked !== 'undefined') {
   window.marked.use({
     renderer: {
       html: (html) => String(html).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+      image(href, title, text) {
+        const src = imageResolver ? imageResolver(href) : href;
+        return '<img src="' + escapeAttr(src) + '" alt="' + escapeAttr(text) + '"'
+          + (title ? ' title="' + escapeAttr(title) + '"' : '') + '>';
+      },
     },
   });
 }
@@ -41,8 +52,14 @@ if (typeof window.marked !== 'undefined' && window.katex) {
 
 window.CAMarkdown = {
   methods: {
-    renderMarkdown(text) {
-      return window.marked.parse(text || '', { gfm: true, breaks: false });
+    // resolveImage：可选，把 markdown 中的相对图片地址转为可访问 URL
+    renderMarkdown(text, resolveImage) {
+      imageResolver = typeof resolveImage === 'function' ? resolveImage : null;
+      try {
+        return window.marked.parse(text || '', { gfm: true, breaks: false });
+      } finally {
+        imageResolver = null;
+      }
     },
   },
 };

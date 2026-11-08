@@ -1,3 +1,6 @@
+// 可与后端 /api/file/raw 配合直接展示的图片后缀
+const CODE_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg', 'avif']);
+
 window.CACode = {
   watch: {
     workspaceView(v) {
@@ -15,6 +18,9 @@ window.CACode = {
     },
     isMarkdownFile() {
       return ['md', 'markdown'].includes(this.extOf(this.currentFilePath));
+    },
+    isImageFile() {
+      return CODE_IMAGE_EXTS.has(this.extOf(this.currentFilePath));
     },
   },
   methods: {
@@ -104,6 +110,7 @@ window.CACode = {
       this.fileDiff = hasDiff ? d : null;
     },
     async openFile(path) {
+      if (CODE_IMAGE_EXTS.has(this.extOf(path))) { this.showImage(path); return; }
       const r = await this.api('/api/file?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
       if (d.is_dir) { this.goPath(path, true); return; }
@@ -154,6 +161,27 @@ window.CACode = {
     downloadUrl(path) {
       return '/api/file/download?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || '');
     },
+    // 图片走 inline 接口，供 code 页 <img> 与 markdown 内联图片使用
+    rawUrl(path) {
+      return '/api/file/raw?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || '');
+    },
+    // markdown 相对图片地址：以当前 md 文件所在目录为基准解析，绝对地址原样保留
+    mdImageUrl(src) {
+      if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith('//') || !this.currentFilePath) return src;
+      const path = this.resolvePath(src, this.currentFilePath);
+      return path ? this.rawUrl(path) : src;
+    },
+    // 图片文件不进编辑器，直接展示
+    showImage(path) {
+      if (this.cm) { this.cm.toTextArea(); this.cm = null; }
+      this.currentFilePath = path;
+      this.codeBrowseOpen = false;
+      this.mdPreview = false;
+      this.fileContent = '';
+      this.fileNotice = '';
+      this.fileDiff = null;
+      this.syncCodeUrl();
+    },
     async saveFile() {
       if (this.cm) this.fileContent = this.cm.getValue();
       await this.api('/api/file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({project_id: this.selectedProjectId, path: this.currentFilePath, content: this.fileContent}) });
@@ -188,6 +216,7 @@ window.CACode = {
       return label[ext] || '';
     },
     initEditor() {
+      if (this.isImageFile) return;
       const ta = this.$refs.codeEditor;
       if (!ta || typeof window.CodeMirror === 'undefined') return;
       const mode = this.fileMode(this.currentFilePath);

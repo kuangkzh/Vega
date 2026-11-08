@@ -11,6 +11,7 @@ from web.auth import login_required
 
 
 _MAX_FILE_SIZE = 1024 * 1024  # 编辑器打开文件大小上限：1MB
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".svg", ".avif"}
 
 
 def _safe_path(cwd: str, path: str) -> str:
@@ -261,6 +262,25 @@ def build_bp(manager) -> Blueprint:
         if not os.path.isfile(target):
             return jsonify({"error": "不是文件"}), 400
         return send_file(target, as_attachment=True, download_name=os.path.basename(target))
+
+    @bp.get("/api/file/raw")
+    @login_required
+    def api_raw_file():
+        """以 inline 方式返回图片，供页面 <img>（含 markdown 内联图片）直接引用。"""
+        try:
+            cwd = _cwd()
+        except ValueError:
+            return jsonify({"error": "project not found"}), 404
+        rel = request.args.get("path") or ""
+        try:
+            target = _safe_path(cwd, rel)
+        except ValueError:
+            return jsonify({"error": "路径越界"}), 400
+        if os.path.splitext(target)[1].lower() not in _IMAGE_EXTS:
+            return jsonify({"error": "仅支持图片文件"}), 400
+        if not os.path.isfile(target):
+            return jsonify({"error": "不是文件"}), 400
+        return send_file(target, as_attachment=False)
 
     @bp.post("/api/file")
     @login_required
