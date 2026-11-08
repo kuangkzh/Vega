@@ -18,7 +18,7 @@ if (typeof window.marked !== 'undefined') {
   });
 }
 
-// $$...$$ 公式交给 KaTeX；katex 未加载时保持原样文本
+// 公式交给 KaTeX：$$...$$ 块级/行内，$...$ 行内；katex 未加载时保持原样文本
 if (typeof window.marked !== 'undefined' && window.katex) {
   const render = (tex, displayMode) => window.katex.renderToString(tex, { displayMode, throwOnError: false });
 
@@ -43,6 +43,18 @@ if (typeof window.marked !== 'undefined' && window.katex) {
         tokenizer(src) {
           const m = /^\$\$([^\n]+?)\$\$/.exec(src);
           if (m) return { type: 'mathInline', raw: m[0], text: m[1].trim() };
+        },
+        renderer: (token) => render(token.text, false),
+      },
+      // 单 $ 行内公式：不跨行、内容不能为空；结束 $ 后不能紧跟数字（避免误吃金额），$$ 由上面的规则处理
+      {
+        name: 'mathInlineSingle',
+        level: 'inline',
+        start: (src) => { const i = src.indexOf('$'); return i < 0 ? undefined : i; },
+        tokenizer(src) {
+          const m = /^\$(?!\$)([^$\n]+?)\$(?!\d)/.exec(src);
+          const text = m ? m[1].trim() : '';
+          if (text) return { type: 'mathInlineSingle', raw: m[0], text };
         },
         renderer: (token) => render(token.text, false),
       },
