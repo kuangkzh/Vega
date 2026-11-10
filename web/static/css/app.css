@@ -180,6 +180,8 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .list-group-item.active .session-link,
 .list-group-item.active .session-name { color: var(--app-text); }
 .list-group-item.active .session-meta { color: var(--app-text-muted); }
+/* 有未发送草稿的会话：标题前小红点 */
+.session-draft-dot { width: 7px; height: 7px; border-radius: 50%; background: #dc3545; }
 
 /* ===== CodeMirror 编辑器（贴合暖灰白主题）===== */
 .CodeMirror {

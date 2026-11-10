@@ -10,6 +10,8 @@ window.CAChat = {
     streamReasoning() { this.scrollChat(); },
     tab(v) { if (v === 'workspace' && this.workspaceView === 'chat') this.scrollChat(true); },
     workspaceView(v) { if (v === 'chat') this.scrollChat(true); },
+    // 输入框内容实时同步到当前会话的草稿，切换会话时直接按 sid 取回
+    inputText(v) { if (this.currentSid) this.inputDrafts[this.currentSid] = v; },
   },
   computed: {
     currentSession() {
@@ -98,6 +100,10 @@ window.CAChat = {
       const p = n => String(n).padStart(2, '0');
       return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
     },
+    hasDraft(sid) {
+      const t = this.inputDrafts[sid];
+      return !!(t && t.trim());
+    },
     shortTitle(t) {
       const s = (t || '').replace(/\s+/g, ' ').trim() || '新会话';
       return s.length > 24 ? s.slice(0, 24) + '…' : s;
@@ -124,8 +130,6 @@ window.CAChat = {
     async selectSession(sid) {
       const s = this.findSession(sid);
       if (!s) return;
-      // 切走前暂存当前会话的输入框内容，切回时恢复
-      if (this.currentSid) this.inputDrafts[this.currentSid] = this.inputText;
       this.closeStream();
       this.selectedProjectId = s.project_id;
       this.workspaceView = 'chat';
