@@ -124,11 +124,15 @@ window.CAChat = {
     async selectSession(sid) {
       const s = this.findSession(sid);
       if (!s) return;
+      // 切走前暂存当前会话的输入框内容，切回时恢复
+      if (this.currentSid) this.inputDrafts[this.currentSid] = this.inputText;
       this.closeStream();
       this.selectedProjectId = s.project_id;
       this.workspaceView = 'chat';
       this.workspaceMenuOpen = false;
       this.currentSid = sid; this.endStreamCycle(); this.pending = [];
+      this.inputText = this.inputDrafts[sid] || '';
+      this.$nextTick(this.autoResize);
       this.usage = s.token_usage; this.maxContext = s.max_context || 0; this.compressRatio = s.compress_ratio || 0.8;
       await this.loadMessages();
       this.openStream();
