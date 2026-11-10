@@ -1,6 +1,11 @@
+// 工具参数美化结果缓存（按 tool_call 对象），避免每次重渲染都 JSON 解析+美化一遍
+const fmtCache = new WeakMap();
+// 流式增量缓冲：先攒在非响应式变量里，定时合并到 streamText，避免每个 chunk 触发一次全量渲染
+const streamBuf = { text: '', reasoning: '' };
+let streamTimer = null;
+
 window.CAChat = {
   watch: {
-    messages: { handler() { this.scrollChat(); }, deep: true },
     streamText() { this.scrollChat(); },
     streamReasoning() { this.scrollChat(); },
     tab(v) { if (v === 'workspace' && this.workspaceView === 'chat') this.scrollChat(true); },
@@ -28,6 +33,22 @@ window.CAChat = {
       const el = this.$refs.chatScroll;
       if (!el) return;
       this.stickToBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 24;
+    },
+    // 流式增量入缓冲，80ms 合并 flush 一次（chunk 频率由供应商决定，不直接决定渲染次数）
+    pushStream(kind, chunk) {
+      if (kind === 'reasoning') streamBuf.reasoning += chunk;
+      else streamBuf.text += chunk;
+      if (!streamTimer) streamTimer = setTimeout(() => { streamTimer = null; this.flushStream(); }, 80);
+    },
+    flushStream() {
+      if (streamBuf.text) { this.streamText += streamBuf.text; streamBuf.text = ''; }
+      if (streamBuf.reasoning) { this.streamReasoning += streamBuf.reasoning; streamBuf.reasoning = ''; }
+    },
+    // 一轮流式输出结束/切换会话：丢弃未 flush 的缓冲并清空展示区
+    endStreamCycle() {
+      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+      streamBuf.text = ''; streamBuf.reasoning = '';
+      this.streamText = ''; this.streamReasoning = '';
     },
     async loadProjects() {
       const r = await this.api('/api/projects');
@@ -85,9 +106,14 @@ window.CAChat = {
       const map = { running: 'text-bg-success', paused: 'text-bg-secondary', complete: 'text-bg-primary', error: 'text-bg-danger' };
       return map[status] || 'text-bg-secondary';
     },
-    formatArgs(s) {
-      if (!s) return '';
-      try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; }
+    formatArgs(tc) {
+      if (!tc) return '';
+      if (fmtCache.has(tc)) return fmtCache.get(tc);
+      const s = (tc.function && tc.function.arguments) || '';
+      let out = s;
+      if (s) { try { out = JSON.stringify(JSON.parse(s), null, 2); } catch (e) { out = s; } }
+      fmtCache.set(tc, out);
+      return out;
     },
     formatTokens(n) {
       n = Number(n) || 0;
@@ -102,7 +128,7 @@ window.CAChat = {
       this.selectedProjectId = s.project_id;
       this.workspaceView = 'chat';
       this.workspaceMenuOpen = false;
-      this.currentSid = sid; this.streamText = ''; this.streamReasoning = ''; this.pending = [];
+      this.currentSid = sid; this.endStreamCycle(); this.pending = [];
       this.usage = s.token_usage; this.maxContext = s.max_context || 0; this.compressRatio = s.compress_ratio || 0.8;
       await this.loadMessages();
       this.openStream();
@@ -117,6 +143,7 @@ window.CAChat = {
     async loadMessages() {
       if (!this.currentSid) return;
       const r = await this.api('/api/sessions/' + this.currentSid + '/messages'); this.messages = await r.json();
+      this.scrollChat(true);
       await this.loadPending();
     },
     async loadPending() {
@@ -148,8 +175,7 @@ window.CAChat = {
         this.currentSid = null;
         this.messages = [];
         this.pending = [];
-        this.streamText = '';
-        this.streamReasoning = '';
+        this.endStreamCycle();
         this.usage = null;
         this.closeStream();
       }
@@ -177,8 +203,7 @@ window.CAChat = {
       const text = this.inputText.trim(); this.inputText = '';
       this.$nextTick(this.autoResize);
       await this.api('/api/sessions/' + this.currentSid + '/message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: text}) });
-      this.streamText = '';
-      this.streamReasoning = '';
+      this.endStreamCycle();
       if (!this.es) this.openStream();
     },
     async resumeSession() {
@@ -203,12 +228,13 @@ window.CAChat = {
         if (sid !== this.currentSid) return;  // 忽略残留旧流事件，避免切换会话时串台
         const d = JSON.parse(ev.data);
         const cur = this.findSession(sid);
-        if (d.type === 'text') this.streamText += d.content;
-        else if (d.type === 'reasoning') this.streamReasoning += d.content;
+        if (d.type === 'text') this.pushStream('text', d.content);
+        else if (d.type === 'reasoning') this.pushStream('reasoning', d.content);
         else if (d.type === 'message') {
           this.messages.push(d.message);
           if (cur) cur.message_count = this.messages.length;
-          if (d.message && d.message.role === 'assistant') { this.streamText = ''; this.streamReasoning = ''; }
+          this.scrollChat();
+          if (d.message && d.message.role === 'assistant') this.endStreamCycle();
         }
         else if (d.type === 'pending_add') {
           if (!this.pending.some(x => x.id === d.item.id)) this.pending.push(d.item);
@@ -223,13 +249,15 @@ window.CAChat = {
         else if (d.type === 'status') {
           if (cur) cur.status = d.status;
           if (d.status === 'paused' || d.status === 'complete' || d.status === 'error') {
-            this.streamText = ''; this.streamReasoning = '';
+            this.endStreamCycle();
             this.loadMessages(); this.loadProjects();
           }
         }
       };
     },
     closeStream() {
+      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+      this.flushStream();
       if (this.es) { this.es.close(); this.es = null; }
     },
     openGlobalStream() {

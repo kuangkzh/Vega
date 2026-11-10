@@ -1,6 +1,9 @@
 // 图片地址解析器：渲染期间由 renderMarkdown 注入，用于把相对路径映射到文件读取接口
 let imageResolver = null;
 
+// 历史消息的 markdown 渲染结果缓存：以消息对象为 key，内容未变时直接复用，避免每次重渲染都重新解析
+const mdCache = new WeakMap();
+
 const escapeAttr = (s) => String(s === null || s === undefined ? '' : s)
   .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -86,6 +89,14 @@ window.CAMarkdown = {
       } finally {
         imageResolver = null;
       }
+    },
+    // 历史消息专用：按消息对象缓存渲染结果（内容不变则跳过 marked.parse）
+    mdHtml(m) {
+      const hit = mdCache.get(m);
+      if (hit && hit.text === m.content) return hit.html;
+      const html = this.renderMarkdown(m.content);
+      mdCache.set(m, { text: m.content, html });
+      return html;
     },
   },
 };
