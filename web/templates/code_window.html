@@ -18,24 +18,17 @@
   </div>
   <div v-else class="container-fluid mt-3">
     <button type="button" class="btn btn-sm btn-outline-secondary d-md-none mb-2" @click="codeBrowseOpen = !codeBrowseOpen">
-      [[ currentBrowsePath ]]<span class="ms-1">[[ codeBrowseOpen ? '▲' : '▼' ]]</span>
+      文件浏览<span class="ms-1">[[ codeBrowseOpen ? '▲' : '▼' ]]</span>
     </button>
     <div class="code-grid">
       <div class="code-sidebar d-md-flex" :class="{ 'is-open': codeBrowseOpen }">
-        <div class="d-flex align-items-center gap-1 mb-2">
-          <nav class="code-breadcrumb flex-grow-1">
-            <a href="#" @click.prevent="browse('.')">根目录</a>
-            <template v-for="s in pathSegments(browsePath)" :key="s.path">
-              <span class="text-muted mx-1">/</span>
-              <a href="#" @click.prevent="goPath(s.path, true)">[[ s.name ]]</a>
-            </template>
-          </nav>
-          <button class="btn btn-sm btn-outline-secondary code-breadcrumb-up flex-shrink-0" title="上级目录" @click="browse('..')">↑</button>
-        </div>
         <ul class="list-group code-file-list">
-          <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center" :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null">
-            <a href="#" class="text-decoration-none flex-grow-1 code-entry" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
-              <div class="text-truncate">[[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]</div>
+          <li v-for="e in visibleRows" :key="e.path" class="list-group-item py-1 d-flex align-items-center"
+              :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null"
+              :style="{ paddingLeft: (e.depth * 0.9 + 0.5) + 'rem' }">
+            <span class="code-tree-caret" :class="{ 'is-dir': e.is_dir }" @click="e.is_dir && toggleDir(e)">[[ e.is_dir ? (treeExpanded[e.path] ? '▾' : '▸') : '' ]]</span>
+            <a href="#" class="text-decoration-none flex-grow-1 code-entry" :class="{ 'is-active': e.path === currentFilePath }" @click.prevent="e.is_dir ? toggleDir(e) : openFile(e.path)">
+              <div class="text-truncate">[[ e.is_dir ? (treeExpanded[e.path] ? '📂' : '📁') : '📄' ]] [[ e.name ]]</div>
               <div v-if="!e.is_dir" class="code-entry-meta">[[ fileSize(e.size) ]] · [[ formatMtime(e.mtime) ]]</div>
             </a>
             <span v-if="e.statusLetters" class="git-diff-badge ms-1" :class="e.statusCls">[[ e.statusLetters ]]</span>
@@ -47,7 +40,7 @@
           <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
             <div class="code-path">
               <nav v-if="currentFilePath" class="code-breadcrumb">
-                <a href="#" @click.prevent="browse('.')">根目录</a>
+                <span>根目录</span>
                 <template v-for="s in pathSegments(currentFilePath, true)" :key="s.path">
                   <span class="text-muted mx-1">/</span>
                   <span v-if="s.isFile" class="fw-semibold">[[ s.name ]]</span>
@@ -136,9 +129,10 @@ const app = Vue.createApp({
     this.workspaceView = 'code';
     const path = q.get('path');
     this.$nextTick(async () => {
-      if (!path) { this.browse('.'); return; }
+      await this.loadDir('.');
+      if (!path) return;
       const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '.';
-      await this.browse(dir);
+      await this.expandTo(dir);
       this.openFile(path);
     });
   },

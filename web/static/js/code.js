@@ -12,9 +12,24 @@ window.CACode = {
       }
     },
   },
+  data() {
+    return {
+      treeChildren: {},   // 目录路径 -> 子项列表（'.' 为根目录）
+      treeExpanded: {},   // 目录路径 -> true 表示已展开
+    };
+  },
   computed: {
-    currentBrowsePath() {
-      return '文件浏览 · ' + (this.browsePath === '.' ? '根目录' : this.browsePath);
+    // 目录树按展开状态拍平为可见行，节点自带 depth 用于缩进
+    visibleRows() {
+      const rows = [];
+      const walk = (dir, depth) => {
+        for (const e of (this.treeChildren[dir] || [])) {
+          rows.push({ ...e, depth });
+          if (e.is_dir && this.treeExpanded[e.path]) walk(e.path, depth + 1);
+        }
+      };
+      walk('.', 0);
+      return rows;
     },
     isMarkdownFile() {
       return ['md', 'markdown'].includes(this.extOf(this.currentFilePath));
@@ -37,16 +52,32 @@ window.CACode = {
       const p = n => String(n).padStart(2, '0');
       return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
     },
-    browse(path) {
-      if (path === '..') {
-        this.browsePath = this.browsePath.includes('/') ? (this.browsePath.slice(0, this.browsePath.lastIndexOf('/')) || '.') : '.';
-      } else {
-        this.browsePath = path;
-      }
-      return this.fetchBrowse(this.browsePath);
+    // 读目录内容进树；子目录按需加载
+    async loadDir(dir) {
+      await this.loadGitStatus();
+      const r = await this.api('/api/browse?path=' + encodeURIComponent(dir) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      this.treeChildren[dir] = d.entries.map(e => {
+        const st = this.entryStatus(e.path);
+        return { ...e, statusLetters: st.text, statusCls: st.cls };
+      });
     },
-    browseJoin(name) { this.browse(this.browsePath === '.' ? name : this.browsePath + '/' + name); },
-    browseJoinPath(name) { return this.browsePath === '.' ? name : this.browsePath + '/' + name; },
+    // 逐级展开到 dir（含加载沿途目录），用于定位当前打开文件
+    async expandTo(dir) {
+      const parts = (dir || '').split('/').filter(p => p && p !== '.');
+      let cur = '.';
+      for (const seg of parts) {
+        cur = cur === '.' ? seg : cur + '/' + seg;
+        this.treeExpanded[cur] = true;
+        if (!this.treeChildren[cur]) await this.loadDir(cur);
+      }
+    },
+    async toggleDir(node) {
+      if (this.treeExpanded[node.path]) { delete this.treeExpanded[node.path]; return; }
+      this.treeExpanded[node.path] = true;
+      if (!this.treeChildren[node.path]) await this.loadDir(node.path);
+    },
     // 面包屑：把项目相对路径切成可点击段（hasFile=true 时最后一段视为文件名，不可点）
     pathSegments(path, hasFile) {
       const parts = (path || '').split('/').filter(p => p && p !== '.');
@@ -69,10 +100,10 @@ window.CACode = {
       }
       return parts.join('/');
     },
-    // 路径分发：目录进浏览，文件进编辑器
+    // 路径分发：目录在树里展开，文件进编辑器
     goPath(path, isDir) {
       if (!path && path !== '.') return;
-      if (isDir) { this.codeBrowseOpen = true; this.browse(path); }
+      if (isDir) { this.codeBrowseOpen = true; this.expandTo(path); }
       else this.openFile(path);
     },
     onMdClick(e) {
@@ -87,23 +118,10 @@ window.CACode = {
       e.preventDefault();
       this.goPath(this.resolvePath(href, this.currentFilePath), href.endsWith('/'));
     },
-    async fetchBrowse(path) {
-      await this.loadGitStatus();
-      const r = await this.api('/api/browse?path=' + encodeURIComponent(path || '.') + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
-      const d = await r.json();
-      if (d.entries) {
-        this.browsePath = String(d.path || '.').replace(/\\/g, '/');
-        this.browseEntries = d.entries.map(e => {
-          const st = this.entryStatus(e);
-          return { ...e, statusLetters: st.text, statusCls: st.cls };
-        });
-      }
-    },
-    entryStatus(e) {
-      const prefix = this.browsePath === '.' ? e.name : this.browsePath + '/' + e.name;
+    entryStatus(path) {
       const letters = new Set();
       for (const p of Object.keys(this.gitStatusMap)) {
-        if (p === prefix || p.startsWith(prefix + '/')) {
+        if (p === path || p.startsWith(path + '/')) {
           for (const l of this.gitStatusMap[p].letters) letters.add(l);
         }
       }
@@ -123,7 +141,7 @@ window.CACode = {
       if (CODE_IMAGE_EXTS.has(this.extOf(path))) { this.showImage(path); return; }
       const r = await this.api('/api/file?path=' + encodeURIComponent(path) + '&project=' + encodeURIComponent(this.selectedProjectId || ''));
       const d = await r.json();
-      if (d.is_dir) { this.goPath(path, true); return; }
+      if (d.is_dir) { this.expandTo(path); return; }
       if (d.error) {
         // 无法打开（如超过 1MB）：改为在正文区提示，并保留下载入口
         if (this.cm) { this.cm.toTextArea(); this.cm = null; }

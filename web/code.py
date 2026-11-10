@@ -225,7 +225,7 @@ def build_bp(manager) -> Blueprint:
         entries.sort(key=lambda e: not e["is_dir"])  # 文件夹在前，组内保持原顺序
         ignored = _ignored_paths(cwd, [e["path"] for e in entries])
         for e in entries:
-            e["ignored"] = e.pop("path") in ignored
+            e["ignored"] = e["path"] in ignored
         return jsonify({"path": os.path.relpath(target, cwd), "entries": entries})
 
     @bp.get("/api/file")

@@ -292,12 +292,14 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .code-breadcrumb { font-size: 1.1rem; white-space: nowrap; overflow-x: auto; min-width: 0; }
 .code-breadcrumb a { color: var(--app-accent-hover); text-decoration: none; }
 .code-breadcrumb a:hover { text-decoration: underline; }
-.code-breadcrumb-up { padding: 0 0.6rem; font-size: 0.875rem; line-height: 1.6; }
 /* 路径 + 语言徽标一行：min-width:0 让面包屑可收缩滚动，不把右侧按钮挤出屏幕 */
 .code-path { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
 .code-file-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .code-file-list .is-git-ignored { opacity: .45; }
 .code-entry { min-width: 0; color: var(--app-text); }
+.code-entry.is-active { color: var(--app-accent-hover); font-weight: 600; }
+.code-tree-caret { width: 14px; flex-shrink: 0; text-align: center; font-size: 11px; color: var(--app-text-muted); }
+.code-tree-caret.is-dir { cursor: pointer; }
 .code-entry-meta { font-size: 11px; color: var(--app-text-muted); }
 /* 桌面：侧栏随页面滚动固定在视口内，长文件时不必回到顶部才能翻目录 */
 @media (min-width: 768px) {
