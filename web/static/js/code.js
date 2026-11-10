@@ -16,6 +16,7 @@ window.CACode = {
     return {
       treeChildren: {},   // 目录路径 -> 子项列表（'.' 为根目录）
       treeExpanded: {},   // 目录路径 -> true 表示已展开
+      ctxMenu: null,      // 树节点右键菜单：{ x, y, node }
     };
   },
   computed: {
@@ -77,6 +78,29 @@ window.CACode = {
       if (this.treeExpanded[node.path]) { delete this.treeExpanded[node.path]; return; }
       this.treeExpanded[node.path] = true;
       if (!this.treeChildren[node.path]) await this.loadDir(node.path);
+    },
+    openCtxMenu(ev, node) {
+      // 菜单高度约 72px，靠近视口底部时上移，避免被裁掉
+      this.ctxMenu = { x: ev.clientX, y: Math.min(ev.clientY, window.innerHeight - 72), node };
+    },
+    async copyCtx(which) {
+      const m = this.ctxMenu;
+      if (!m) return;
+      const text = which === 'name' ? m.node.name : m.node.path;
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // 非安全上下文（如通过局域网 IP 用 HTTP 访问）没有 clipboard API，退回 execCommand
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      this.ctxMenu = null;
     },
     // 面包屑：把项目相对路径切成可点击段（hasFile=true 时最后一段视为文件名，不可点）
     pathSegments(path, hasFile) {

@@ -301,6 +301,30 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .code-tree-caret { width: 14px; flex-shrink: 0; text-align: center; font-size: 11px; color: var(--app-text-muted); }
 .code-tree-caret.is-dir { cursor: pointer; }
 .code-entry-meta { font-size: 11px; color: var(--app-text-muted); }
+/* 文件树右键菜单 */
+.code-ctx-backdrop { position: fixed; inset: 0; z-index: 40; }
+.code-ctx-menu {
+  position: fixed;
+  min-width: 140px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.code-ctx-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--app-text);
+  cursor: pointer;
+}
+.code-ctx-item:hover { background: var(--app-surface-2); }
 /* 桌面：侧栏随页面滚动固定在视口内，长文件时不必回到顶部才能翻目录 */
 @media (min-width: 768px) {
   .code-sidebar {

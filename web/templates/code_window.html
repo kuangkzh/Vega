@@ -25,7 +25,8 @@
         <ul class="list-group code-file-list">
           <li v-for="e in visibleRows" :key="e.path" class="list-group-item py-1 d-flex align-items-center"
               :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null"
-              :style="{ paddingLeft: (e.depth * 0.9 + 0.5) + 'rem' }">
+              :style="{ paddingLeft: (e.depth * 0.9 + 0.5) + 'rem' }"
+              @contextmenu.prevent="openCtxMenu($event, e)">
             <span class="code-tree-caret" :class="{ 'is-dir': e.is_dir }" @click="e.is_dir && toggleDir(e)">[[ e.is_dir ? (treeExpanded[e.path] ? '▾' : '▸') : '' ]]</span>
             <a href="#" class="text-decoration-none flex-grow-1 code-entry" :class="{ 'is-active': e.path === currentFilePath }" @click.prevent="e.is_dir ? toggleDir(e) : openFile(e.path)">
               <div class="text-truncate">[[ e.is_dir ? (treeExpanded[e.path] ? '📂' : '📁') : '📄' ]] [[ e.name ]]</div>
@@ -66,6 +67,12 @@
             <div v-if="mdPreview" class="md-preview md-body" v-html="renderMarkdown(fileContent, mdImageUrl)" @click="onMdClick"></div>
           </template>
         </div></div>
+      </div>
+    </div>
+    <div v-if="ctxMenu" class="code-ctx-backdrop" @click="ctxMenu = null" @contextmenu.prevent="ctxMenu = null">
+      <div class="code-ctx-menu" :style="{ top: ctxMenu.y + 'px', left: ctxMenu.x + 'px' }" @click.stop>
+        <button type="button" class="code-ctx-item" @click="copyCtx('name')">Copy name</button>
+        <button type="button" class="code-ctx-item" @click="copyCtx('path')">Copy path</button>
       </div>
     </div>
     <div v-if="diffDetail" class="diff-popover-backdrop" @click.self="closeDiffDetail">
