@@ -297,6 +297,18 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .code-path { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
 .code-file-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .code-file-list .is-git-ignored { opacity: .45; }
+.code-entry { min-width: 0; color: var(--app-text); }
+.code-entry-meta { font-size: 11px; color: var(--app-text-muted); }
+/* 桌面：侧栏随页面滚动固定在视口内，长文件时不必回到顶部才能翻目录 */
+@media (min-width: 768px) {
+  .code-sidebar {
+    position: sticky;
+    top: 0.75rem;
+    align-self: flex-start;
+    max-height: calc(100vh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+}
 .code-file-notice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; min-height: 40vh; border: 1px dashed var(--app-border); border-radius: 8px; }
 .code-image { display: block; max-width: 100%; max-height: 80vh; margin: 0 auto; border-radius: 8px; }
 .code-main { flex: 1 1 auto; min-width: 0; }

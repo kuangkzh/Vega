@@ -27,6 +27,16 @@ window.CACode = {
     extOf(path) {
       return ((path || '').split('.').pop() || '').toLowerCase();
     },
+    fileSize(bytes) {
+      if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+      if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return bytes + ' B';
+    },
+    formatMtime(ts) {
+      const d = new Date(ts * 1000);
+      const p = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    },
     browse(path) {
       if (path === '..') {
         this.browsePath = this.browsePath.includes('/') ? (this.browsePath.slice(0, this.browsePath.lastIndexOf('/')) || '.') : '.';

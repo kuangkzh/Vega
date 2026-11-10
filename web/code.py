@@ -211,10 +211,14 @@ def build_bp(manager) -> Blueprint:
             entries = []
             for n in sorted(os.listdir(target)):
                 full = os.path.join(target, n)
+                is_dir = os.path.isdir(full)
+                st = os.stat(full)
                 entries.append({
                     "name": n,
-                    "is_dir": os.path.isdir(full),
+                    "is_dir": is_dir,
                     "path": os.path.relpath(full, cwd).replace(os.sep, "/"),
+                    "size": None if is_dir else st.st_size,
+                    "mtime": int(st.st_mtime),
                 })
         except Exception as exc:  # noqa: BLE001
             return jsonify({"error": str(exc)}), 400

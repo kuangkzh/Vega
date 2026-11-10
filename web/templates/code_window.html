@@ -34,8 +34,9 @@
         </div>
         <ul class="list-group code-file-list">
           <li v-for="(e, i) in browseEntries" :key="i" class="list-group-item py-1 d-flex align-items-center" :class="{ 'is-git-ignored': e.ignored }" :title="e.ignored ? '已被 .gitignore 忽略' : null">
-            <a href="#" class="text-decoration-none flex-grow-1 text-truncate" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
-              [[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]
+            <a href="#" class="text-decoration-none flex-grow-1 code-entry" @click.prevent="e.is_dir ? browseJoin(e.name) : openFile(browseJoinPath(e.name))">
+              <div class="text-truncate">[[ e.is_dir ? '📁' : '📄' ]] [[ e.name ]]</div>
+              <div v-if="!e.is_dir" class="code-entry-meta">[[ fileSize(e.size) ]] · [[ formatMtime(e.mtime) ]]</div>
             </a>
             <span v-if="e.statusLetters" class="git-diff-badge ms-1" :class="e.statusCls">[[ e.statusLetters ]]</span>
           </li>
