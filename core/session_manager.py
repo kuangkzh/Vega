@@ -38,6 +38,7 @@ class SessionManager:
         self._global_subscribers: set = set()
         self._lock = threading.RLock()
         self.runtime.project_resolver = self._project_context
+        self.runtime.session_user_messages = self._session_user_messages
 
     def load(self) -> "SessionManager":
         """启动时恢复项目与会话（默认暂停），并启动各项目的 IM 监听。"""
@@ -324,6 +325,10 @@ class SessionManager:
             "im_link": im,
             "im_config": dict(project.im_link) if project else {},
         }
+
+    def _session_user_messages(self, session_id: str) -> List[str]:
+        """审批 prompt 的 {{ user_messages }} 槽位：该会话全部用户消息内容，按时间顺序。"""
+        return [m["content"] for m in self.store.load_messages(session_id) if m["role"] == "user"]
 
     # 异步任务完成回调（task_manager.on_done）
     def on_task_done(self, session_id: Optional[str], tool_name: str, task) -> None:

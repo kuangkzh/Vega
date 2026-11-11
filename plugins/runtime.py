@@ -205,12 +205,14 @@ def render_approver_prompt(
     reason: str,
     cwd: str,
     config: Dict[str, Any],
+    user_messages: Optional[List[str]] = None,
 ) -> str:
     """渲染审批 prompt 槽位（Jinja2，复用 render_prompt）。
 
     基础上下文与 system_prompt 一致（整个 config 平铺 + {{ config.* }} + {{ time }} / {{ cwd }} / {{ platform }}），
     额外提供 {{ plugin }}（可读摘要，等同 plugin.name：plugin.description）、{{ plugin.name }}、
-    {{ plugin.description }}、{{ args }}（执行参数 JSON）、{{ reason }}（申请理由）。
+    {{ plugin.description }}、{{ args }}（执行参数 JSON）、{{ reason }}（申请理由）、
+    {{ user_messages }}（该会话全部用户消息，按时间顺序的字符串列表，可切片如 user_messages[-3:]）。
     """
     return render_prompt(
         template,
@@ -220,6 +222,7 @@ def render_approver_prompt(
             "plugin": plugin or "",
             "args": json.dumps(args or {}, ensure_ascii=False),
             "reason": reason or "",
+            "user_messages": user_messages or [],
         },
     )
 
@@ -254,6 +257,7 @@ class PluginRuntime:
         self.task_manager = task_manager
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
+        self.session_user_messages: Optional[Callable[[str], List[str]]] = None
         self.pending: Dict[str, PendingApproval] = {}
         self.overflow_results: Dict[str, PluginResult] = {}
         self._lock = threading.RLock()
@@ -277,6 +281,12 @@ class PluginRuntime:
             except Exception as exc:  # noqa: BLE001
                 print(f"[plugin] 解析 project 上下文失败: {exc}")
         return {"project_id": None, "cwd": self.cwd, "im_link": None, "im_config": {}}
+
+    def _session_user_messages(self, session_id: Optional[str]) -> List[str]:
+        """该会话全部用户消息内容，按时间顺序；未接 provider 或无 session 时为空列表。"""
+        if self.session_user_messages is None or not session_id:
+            return []
+        return self.session_user_messages(session_id)
 
     def execute(self, plugin_name: str, args: Dict[str, Any], session_id: Optional[str] = None) -> PluginResult:
         plugin = self.plugins.get(plugin_name)
@@ -470,6 +480,7 @@ class PluginRuntime:
             pa.request_reason,
             cwd=cwd,
             config=self.config,
+            user_messages=self._session_user_messages(pa.session_id),
         )
         messages = [
             {"role": "system", "content": system},
