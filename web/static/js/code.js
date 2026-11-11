@@ -35,8 +35,17 @@ window.CACode = {
     isMarkdownFile() {
       return ['md', 'markdown'].includes(this.extOf(this.currentFilePath));
     },
+    isCsvFile() {
+      return this.extOf(this.currentFilePath) === 'csv';
+    },
     isImageFile() {
       return CODE_IMAGE_EXTS.has(this.extOf(this.currentFilePath));
+    },
+    // 表格预览：首行为表头，其余为数据行；列数取最大列数，短行留空
+    csvTable() {
+      const rows = this.parseCsv(this.fileContent);
+      const cols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+      return { header: rows[0] || [], rows: rows.slice(1), cols };
     },
   },
   methods: {
@@ -171,7 +180,7 @@ window.CACode = {
         if (this.cm) { this.cm.toTextArea(); this.cm = null; }
         this.currentFilePath = path;
         this.codeBrowseOpen = false;
-        this.mdPreview = false;
+        this.filePreview = false;
         this.fileContent = '';
         this.fileDiff = null;
         this.fileNotice = d.error;
@@ -179,19 +188,40 @@ window.CACode = {
         return;
       }
       if (d.content !== undefined) {
-        const isMd = ['md', 'markdown'].includes(this.extOf(path));
-        // markdown 直接进预览：先释放编辑器，避免 CodeMirror 的 DOM 残留在页面上
-        if (isMd && this.cm) { this.cm.toTextArea(); this.cm = null; }
+        const preview = ['md', 'markdown', 'csv'].includes(this.extOf(path));
+        // markdown / csv 直接进预览：先释放编辑器，避免 CodeMirror 的 DOM 残留在页面上
+        if (preview && this.cm) { this.cm.toTextArea(); this.cm = null; }
         this.currentFilePath = path;
         this.codeBrowseOpen = false;
         this.fileNotice = '';
-        this.mdPreview = isMd;  // markdown 默认渲染展示
+        this.filePreview = preview;  // markdown / csv 默认渲染展示
         this.fileContent = d.content;
         this.fileDiff = null;
         this.syncCodeUrl();
         await this.loadFileDiff(path);
-        if (!isMd) this.$nextTick(() => this.initEditor());
+        if (!preview) this.$nextTick(() => this.initEditor());
       }
+    },
+    // 标准 CSV：逗号分隔、引号包裹字段、"" 转义引号、字段内可换行；去 BOM
+    parseCsv(text) {
+      const src = (text || '').replace(/^\uFEFF/, '');
+      const rows = [];
+      let row = [], field = '', quoted = false;
+      for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        if (quoted) {
+          if (ch !== '"') field += ch;
+          else if (src[i + 1] === '"') { field += '"'; i++; }
+          else quoted = false;
+        } else if (ch === '"') quoted = true;
+        else if (ch === ',') { row.push(field); field = ''; }
+        else if (ch === '\n' || ch === '\r') {
+          if (ch === '\r' && src[i + 1] === '\n') i++;
+          row.push(field); rows.push(row); row = []; field = '';
+        } else field += ch;
+      }
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      return rows;
     },
     syncCodeUrl() {
       const url = new URL(location.href);
@@ -201,13 +231,14 @@ window.CACode = {
       else url.searchParams.delete('path');
       history.replaceState(null, '', url);
     },
-    toggleMdPreview() {
-      if (this.mdPreview) {
-        this.mdPreview = false;
+    // markdown / csv 共用：预览态与源码态切换
+    togglePreview() {
+      if (this.filePreview) {
+        this.filePreview = false;
         this.$nextTick(() => this.initEditor());
       } else {
         if (this.cm) { this.fileContent = this.cm.getValue(); this.cm.toTextArea(); this.cm = null; }
-        this.mdPreview = true;
+        this.filePreview = true;
       }
     },
     downloadUrl(path) {
@@ -228,7 +259,7 @@ window.CACode = {
       if (this.cm) { this.cm.toTextArea(); this.cm = null; }
       this.currentFilePath = path;
       this.codeBrowseOpen = false;
-      this.mdPreview = false;
+      this.filePreview = false;
       this.fileContent = '';
       this.fileNotice = '';
       this.fileDiff = null;
@@ -262,7 +293,7 @@ window.CACode = {
       const label = {
         py: 'Python', js: 'JavaScript', mjs: 'JavaScript', jsx: 'JSX', ts: 'TypeScript',
         html: 'HTML', htm: 'HTML', css: 'CSS', scss: 'SCSS', xml: 'XML', json: 'JSON',
-        md: 'Markdown', yml: 'YAML', yaml: 'YAML', sh: 'Shell', sql: 'SQL',
+        md: 'Markdown', csv: 'CSV', yml: 'YAML', yaml: 'YAML', sh: 'Shell', sql: 'SQL',
         c: 'C', h: 'C', cpp: 'C++', java: 'Java', cs: 'C#', php: 'PHP', go: 'Go', rs: 'Rust',
       };
       return label[ext] || '';
