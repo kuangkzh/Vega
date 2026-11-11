@@ -214,7 +214,7 @@ def run_shell(ctx, command: str, is_async: bool = False, task_name: str = ""):
             task_id = tm.submit(task_name or "shell", ctx.session_id, target, params={"command": command}, tool_name="run_shell", project_id=ctx.project_id)
         except ValueError as exc:
             return PluginResult({}, str(exc))
-        return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。完成后结果会自动追加到对话。")
+        return PluginResult({"task_id": task_id}, f"后台任务提交成功，任务标识={task_id}。任务结束后会自动通知。")
 
     try:
         proc = subprocess.run(_shell_argv(command, shell_path), cwd=ctx.cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
