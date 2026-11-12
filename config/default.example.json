@@ -102,6 +102,16 @@
       "permission": {
         "default": "Trusted"
       }
+    },
+    "git_create_worktree": {
+      "permission": {
+        "default": "AgentReview"
+      }
+    },
+    "git_merge_worktree": {
+      "permission": {
+        "default": "AgentReview"
+      }
     }
   }
 }

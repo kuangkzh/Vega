@@ -278,6 +278,13 @@ window.CAChat = {
       };
     },
     upsertSession(sess) {
+      // 会话可能换了 project（worktree 切换），先从其他 project 的列表里摘掉
+      for (const op of this.projects) {
+        if (op.id === sess.project_id) continue;
+        const j = (op.sessions || []).findIndex(x => x.id === sess.id);
+        if (j >= 0) op.sessions.splice(j, 1);
+      }
+      if (this.currentSid === sess.id) this.selectedProjectId = sess.project_id;
       const p = this.projects.find(x => x.id === sess.project_id);
       if (!p) return;
       p.sessions = p.sessions || [];
@@ -291,6 +298,9 @@ window.CAChat = {
       if (project.deleted) {
         const i = this.projects.findIndex(x => x.id === project.id);
         if (i >= 0) this.projects.splice(i, 1);
+        // 会话可能已迁到别的 project（worktree 合并），当前对话跟着会话走，不要清空
+        const s = this.currentSid ? this.findSession(this.currentSid) : null;
+        if (s) { this.selectedProjectId = s.project_id; return; }
         if (this.selectedProjectId === project.id) {
           this.selectedProjectId = null; this.currentSid = null; this.messages = [];
           this.closeStream();

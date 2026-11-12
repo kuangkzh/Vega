@@ -234,6 +234,7 @@ class PluginContext:
     cwd: str
     config: Dict[str, Any]
     runtime: "PluginRuntime"
+    manager: Any = None
     session_id: Optional[str] = None
     project_id: Optional[str] = None
     im_link: Any = None
@@ -254,6 +255,7 @@ class PluginRuntime:
         self.plugins = load_plugins(plugins_dir)
         self.config = config or {}
         self.cwd = cwd
+        self.manager = None
         self.task_manager = task_manager
         self.model_provider = model_provider or (lambda _mid=None: None)
         self.project_resolver: Optional[Callable[[Optional[str]], Dict[str, Any]]] = None
@@ -322,6 +324,7 @@ class PluginRuntime:
             cwd=project_ctx.get("cwd") or self.cwd,
             config=self.plugin_config(plugin.name),
             runtime=self,
+            manager=self.manager,
             session_id=session_id,
             project_id=project_ctx.get("project_id"),
             im_link=project_ctx.get("im_link"),

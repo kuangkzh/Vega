@@ -37,6 +37,7 @@ class SessionManager:
         self._im_links: Dict[str, Any] = {}
         self._global_subscribers: set = set()
         self._lock = threading.RLock()
+        self.runtime.manager = self
         self.runtime.project_resolver = self._project_context
         self.runtime.session_user_messages = self._session_user_messages
 
@@ -138,6 +139,26 @@ class SessionManager:
             s.cwd = p.path
         self.emit_project_change(p)
         return p
+
+    def move_session(self, sid: str, project_id: str) -> Optional[AgentSession]:
+        """把会话迁到另一个 project（worktree 场景）：同步 cwd、IM 绑定与监听，并持久化。"""
+        sess = self.get(sid)
+        project = self.get_project(project_id)
+        if sess is None or project is None or sess.project_id == project_id:
+            return sess
+        old_pid = sess.project_id
+        sess.project_id = project_id
+        sess.cwd = project.path
+        with self._lock:
+            moved_im = self._im_session_by_project.get(old_pid) == sid
+            if moved_im:
+                self._im_session_by_project.pop(old_pid, None)
+                self._im_session_by_project[project_id] = sid
+        if moved_im:
+            self.stop_project_im(old_pid)  # 取消原 project 的回调，避免同一 chat 重复投递
+            self.start_project_im(project_id)
+        sess._persist()
+        return sess
 
     def delete_project(self, project_id: str) -> None:
         if self.get_project(project_id) is None:
