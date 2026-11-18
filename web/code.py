@@ -374,6 +374,16 @@ def build_bp(manager) -> Blueprint:
             return jsonify({"error": "project not found"}), 404
         return jsonify(_git(["status", "--short"], cwd))
 
+    @bp.get("/api/git/dirty")
+    @login_required
+    def api_git_dirty():
+        """所有 project 的工作区是否有未提交改动（porcelain 输出非空），用于列表页小红点。"""
+        res = {}
+        for p in manager.list_projects():
+            r = _git(["status", "--porcelain"], p.path)
+            res[p.id] = bool((r.get("out") or "").strip())
+        return jsonify(res)
+
     @bp.get("/api/git/commit")
     @login_required
     def api_git_commit():

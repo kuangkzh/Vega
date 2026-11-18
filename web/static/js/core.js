@@ -43,7 +43,11 @@ window.CACore = {
     async logout() { await this.api('/api/logout', { method:'POST' }); location.href = '/login'; },
   },
   mounted() {
-      this.checkAuth();
+      // 轮询各项目 git 未提交改动，驱动 code 按钮小红点（页面隐藏时跳过）
+      const tick = () => { if (!document.hidden) this.loadGitDirty(); };
+      setInterval(tick, 5000);
+      document.addEventListener('visibilitychange', tick);
+      this.checkAuth().then(tick);
       document.addEventListener('click', () => this.closeProjectMenus());
       document.addEventListener('keydown', (e) => {
         if (!(e.ctrlKey || e.metaKey) || !e.shiftKey || (e.key !== 'F' && e.key !== 'f')) return;

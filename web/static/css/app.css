@@ -536,6 +536,9 @@ pre { white-space: pre-wrap; font-size: 12px; }
 .project-toggle { color: var(--app-text-muted); cursor: pointer; }
 .project-name { font-weight: 600; cursor: pointer; min-width: 0; }
 .project-menu-wrap { position: relative; flex-shrink: 0; }
+/* 项目行 code 按钮：仓库有未提交改动时右上角小红点 */
+.project-code-wrap { position: relative; display: inline-flex; }
+.project-dirty-dot { position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #dc3545; }
 .project-menu {
   position: absolute;
   top: 100%;

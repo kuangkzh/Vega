@@ -59,10 +59,17 @@ window.CAChat = {
         const old = this.projects.find(x => x.id === p.id);
         p.expanded = old ? !!old.expanded : false;
         p.menuOpen = old ? !!old.menuOpen : false;
+        p.gitDirty = old ? !!old.gitDirty : false;
         p.sessions = (p.sessions || []).sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
       }
       this.projects = list;
       this.sortProjects();
+    },
+    // 各项目仓库是否有未提交改动（用于 code 按钮小红点），由前台定时轮询
+    async loadGitDirty() {
+      const r = await this.api('/api/git/dirty');
+      const map = await r.json();
+      for (const p of this.projects) p.gitDirty = !!map[p.id];
     },
     projectLatestTime(p) {
       let t = 0;
@@ -310,9 +317,9 @@ window.CAChat = {
       const i = this.projects.findIndex(x => x.id === project.id);
       if (i >= 0) {
         const old = this.projects[i];
-        this.projects[i] = { ...project, sessions: old.sessions || [], expanded: old.expanded, menuOpen: old.menuOpen };
+        this.projects[i] = { ...project, sessions: old.sessions || [], expanded: old.expanded, menuOpen: old.menuOpen, gitDirty: old.gitDirty };
       } else {
-        this.projects.push({ ...project, sessions: [], expanded: false, menuOpen: false });
+        this.projects.push({ ...project, sessions: [], expanded: false, menuOpen: false, gitDirty: false });
       }
       this.sortProjects();
     },
