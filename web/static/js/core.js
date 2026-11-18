@@ -45,5 +45,10 @@ window.CACore = {
   mounted() {
       this.checkAuth();
       document.addEventListener('click', () => this.closeProjectMenus());
+      document.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || !e.shiftKey || (e.key !== 'F' && e.key !== 'f')) return;
+        e.preventDefault();
+        this.openSearch();
+      });
     },
 };

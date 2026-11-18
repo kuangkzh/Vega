@@ -10,6 +10,7 @@ from flask import Flask, jsonify, render_template, request
 from plugins.runtime import DEFAULT_LEVEL
 from web.auth import Auth, build_bp as build_auth_bp, login_required
 from web.code import build_bp as build_code_bp
+from web.search import build_bp as build_search_bp
 from web.sessions import build_bp as build_sessions_bp
 
 
@@ -96,6 +97,7 @@ def create_app(config, manager, runtime, task_manager, config_path=None):
     app.register_blueprint(build_auth_bp(auth))
     app.register_blueprint(build_sessions_bp(manager, auth))
     app.register_blueprint(build_code_bp(manager))
+    app.register_blueprint(build_search_bp(manager))
 
     # ---------- 项目 ----------
     def _project_payload(p):

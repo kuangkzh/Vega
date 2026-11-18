@@ -1,0 +1,55 @@
+<div v-if="tab==='search'" class="container-fluid mt-3">
+  <div class="d-flex gap-2">
+    <input ref="searchInput" v-model="searchQuery" class="form-control" placeholder="搜索会话内容，回车执行（Ctrl+Shift+F）" @keyup.enter="runSearch">
+    <button class="btn btn-primary flex-shrink-0" :disabled="searchLoading" @click="runSearch">搜索</button>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
+    <div class="form-check form-check-inline mb-0">
+      <input id="scope-user" v-model="searchScopes.user" class="form-check-input" type="checkbox" @change="searchQuery.trim() && runSearch()">
+      <label class="form-check-label small" for="scope-user">用户</label>
+    </div>
+    <div class="form-check form-check-inline mb-0">
+      <input id="scope-reasoning" v-model="searchScopes.reasoning" class="form-check-input" type="checkbox" @change="searchQuery.trim() && runSearch()">
+      <label class="form-check-label small" for="scope-reasoning">思考过程</label>
+    </div>
+    <div class="form-check form-check-inline mb-0">
+      <input id="scope-tool-call" v-model="searchScopes.tool_call" class="form-check-input" type="checkbox" @change="searchQuery.trim() && runSearch()">
+      <label class="form-check-label small" for="scope-tool-call">工具调用</label>
+    </div>
+    <div class="form-check form-check-inline mb-0">
+      <input id="scope-tool-result" v-model="searchScopes.tool_result" class="form-check-input" type="checkbox" @change="searchQuery.trim() && runSearch()">
+      <label class="form-check-label small" for="scope-tool-result">工具结果</label>
+    </div>
+    <div class="form-check form-check-inline mb-0">
+      <input id="scope-reply" v-model="searchScopes.reply" class="form-check-input" type="checkbox" @change="searchQuery.trim() && runSearch()">
+      <label class="form-check-label small" for="scope-reply">回复正文</label>
+    </div>
+    <select v-model="searchProjectId" class="form-select form-select-sm w-auto ms-auto" @change="searchQuery.trim() && runSearch()">
+      <option value="">全部项目</option>
+      <option v-for="p in projects" :key="p.id" :value="p.id">[[ p.name ]]</option>
+    </select>
+  </div>
+
+  <div v-if="searchLoading" class="text-center text-muted mt-4">
+    <div class="spinner-border spinner-border-sm" role="status"></div>
+  </div>
+  <template v-else>
+    <div v-if="searchRan" class="small text-muted mt-3 mb-2">
+      [[ searchResults.length ]] 条结果<span v-if="searchTruncated">（仅显示最新 100 条，可缩小关键词或范围）</span>
+    </div>
+    <div v-for="r in searchResults" :key="r.id" class="card search-result mb-2" @click="openSearchResult(r)">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center gap-2 small text-muted mb-1">
+          <span class="d-flex align-items-center gap-2" style="min-width:0">
+            <span class="badge flex-shrink-0" :class="searchKindBadge(r.kind)">[[ searchKindLabel(r.kind) ]]</span>
+            <span class="text-truncate">[[ r.title || '(无标题)' ]]</span>
+          </span>
+          <span class="flex-shrink-0">[[ r.project_name ]] · [[ formatTime(r.created_at) ]]</span>
+        </div>
+        <div class="search-snippet small" v-html="highlightSnippet(r.snippet)"></div>
+      </div>
+    </div>
+    <div v-if="searchRan && !searchResults.length" class="text-muted small">没有匹配的内容</div>
+  </template>
+</div>

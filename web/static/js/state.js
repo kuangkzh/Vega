@@ -21,6 +21,9 @@ window.CAState = {
       showModelForm: false, modelEdit: null,
       modelForm: { id:'', base_url:'', api_key:'', max_context:128000, compress_ratio:0.8, tool_compat_mode:false },
       pluginList: [],
+      searchQuery: '', searchScopes: { user: true, reasoning: false, tool_call: false, tool_result: false, reply: true },
+      searchProjectId: '', searchResults: [], searchLoading: false, searchRan: false, searchTruncated: false,
+      highlightMid: null,
     };
   },
   computed: {

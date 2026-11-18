@@ -23,6 +23,7 @@
     <main class="app-content">
       {% include 'index/_workspace.html' %}
       {% include 'index/_tasks.html' %}
+      {% include 'index/_search.html' %}
       {% include 'index/_settings.html' %}
     </main>
     {% include 'index/_task_modal.html' %}
@@ -51,6 +52,7 @@
 <script src="{{ url_for('static', filename='js/code.js') }}"></script>
 <script src="{{ url_for('static', filename='js/git.js') }}"></script>
 <script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

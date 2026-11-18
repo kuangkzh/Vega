@@ -7,6 +7,7 @@ const app = Vue.createApp({
     window.CACode,
     window.CAGit,
     window.CATasks,
+    window.CASearch,
     window.CASettings,
     window.CAState,
   ],

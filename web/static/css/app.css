@@ -83,6 +83,9 @@ pre { white-space: pre-wrap; font-size: 12px; }
 }
 .msg-wrap:hover .msg-fork { opacity: 1; color: var(--app-accent); }
 
+/* 搜索命中定位：临时描边高亮 */
+.msg-wrap.msg-hit { box-shadow: 0 0 0 2px var(--app-warning); border-radius: 8px; }
+
 /* 按钮全局：加粗字 + 粗边框 + 无阴影 */
 .btn { font-weight: 600; --bs-btn-border-width: 2px; }
 .btn, .btn:hover, .btn:focus, .btn:focus-visible, .btn:active { box-shadow: none; }
@@ -576,3 +579,9 @@ pre { white-space: pre-wrap; font-size: 12px; }
   }
   .workspace-sidebar.is-open { display: flex; }
 }
+
+/* ===== 搜索页 ===== */
+.search-result { cursor: pointer; }
+.search-result:hover { border-color: var(--app-accent); }
+.search-snippet { word-break: break-word; color: var(--app-text); }
+.search-snippet mark { background: #ffe9a8; padding: 0 1px; }

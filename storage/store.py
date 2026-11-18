@@ -11,6 +11,16 @@ from typing import List, Optional
 from storage.schemas import BackgroundTask, ChatSession, Project
 
 
+# 搜索范围 → messages 表条件（条件里的 ? 为 LIKE 模式串）
+_SEARCH_CONDITIONS = {
+    "user": "(m.role='user' AND m.content LIKE ?)",
+    "reasoning": "m.reasoning_content LIKE ?",
+    "tool_call": "m.tool_calls LIKE ?",
+    "tool_result": "(m.role IN ('tool','async-tool') AND m.content LIKE ?)",
+    "reply": "(m.role='assistant' AND m.content LIKE ?)",
+}
+
+
 class Store:
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -261,6 +271,36 @@ class Store:
                     (session_id,),
                 ).fetchone()
                 return str(row["content"]) if row else None
+            finally:
+                conn.close()
+
+    def search_messages(self, keyword: str, scopes: List[str],
+                        project_id: Optional[str] = None, limit: int = 100) -> List[dict]:
+        """关键词检索：只返回命中的消息行（附所属项目路径与会话标题）。"""
+        conds = [_SEARCH_CONDITIONS[s] for s in scopes if s in _SEARCH_CONDITIONS]
+        if not conds:
+            return []
+        like = "%" + keyword + "%"
+        where = "(" + " OR ".join(conds) + ")"
+        params: List[object] = [like] * len(conds)
+        if project_id:
+            where += " AND s.project_id=?"
+            params.append(project_id)
+        params.append(limit)
+        with self._lock:
+            conn = self._conn()
+            try:
+                rows = conn.execute(
+                    "SELECT m.id, m.session_id, m.role, m.content, m.reasoning_content, m.tool_calls, "
+                    "m.created_at, s.project_id, p.path AS project_path, "
+                    "(SELECT content FROM messages um WHERE um.session_id=m.session_id AND um.role='user' "
+                    "ORDER BY um.id LIMIT 1) AS title "
+                    "FROM messages m JOIN sessions s ON s.id=m.session_id "
+                    "LEFT JOIN projects p ON p.id=s.project_id "
+                    f"WHERE {where} ORDER BY m.id DESC LIMIT ?",
+                    params,
+                ).fetchall()
+                return [dict(r) for r in rows]
             finally:
                 conn.close()
 
