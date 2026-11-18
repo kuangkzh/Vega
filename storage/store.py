@@ -347,7 +347,8 @@ class Store:
 
     @staticmethod
     def _row_to_msg(row: sqlite3.Row) -> dict:
-        m = {"id": row["id"], "role": row["role"], "content": row["content"] or ""}
+        m = {"id": row["id"], "role": row["role"], "content": row["content"] or "",
+             "created_at": row["created_at"]}
         if row["reasoning_content"]:
             m["reasoning_content"] = row["reasoning_content"]
         if row["tool_calls"]:

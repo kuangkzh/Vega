@@ -65,7 +65,7 @@ pre { white-space: pre-wrap; font-size: 12px; }
 /* 工具调用/结果 summary 前缀图标 */
 .summary-icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; color: var(--app-text-muted); }
 
-/* 消息卡片：右下角 fork 图标 */
+/* 消息卡片：右下角 fork 图标 + 消息时间 */
 .msg-wrap { position: relative; }
 .msg-fork {
   position: absolute;
@@ -82,6 +82,16 @@ pre { white-space: pre-wrap; font-size: 12px; }
   border-radius: 4px;
 }
 .msg-wrap:hover .msg-fork { opacity: 1; color: var(--app-accent); }
+.msg-time {
+  position: absolute;
+  right: 27px;
+  bottom: 7px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--app-text-muted);
+  opacity: 0.8;
+  pointer-events: none;
+}
 
 /* 搜索命中定位：临时描边高亮 */
 .msg-wrap.msg-hit { box-shadow: 0 0 0 2px var(--app-warning); border-radius: 8px; }
